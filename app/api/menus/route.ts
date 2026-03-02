@@ -21,4 +21,3 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ items: filteredItems });
 }
-export const runtime = "nodejs";
