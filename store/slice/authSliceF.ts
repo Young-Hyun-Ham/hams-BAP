@@ -98,17 +98,20 @@ export const createAuthSlice = (set: any, get: any) => ({
     try {
       if (get().user?.isTestUser) {
         get().clearUserAndData();
-      } else if (get().loginType === "email") {
-        try {
-          await api.get("/api/auth/logout").catch(() => {});
-          set({ user: null, token: null });
-          get().clearUserAndData();
-        } catch (error) {
-          console.error("Logout failed:", error);
-        }
-      } else {
-        await signOut(get().auth);
+        return;
       }
+
+      // Google OAuth / Email 로그인 모두 서버 쿠키 세션 삭제를 우선 수행
+      await api.get("/api/auth/logout").catch(() => {});
+
+      // Firebase SDK 세션이 남아있을 수 있어 best-effort로 정리
+      await signOut(get().auth).catch(() => {});
+
+      set({ user: null, token: null, loginType: null });
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("loginType");
+      }
+      get().clearUserAndData();
     } catch (error) {
       console.error("Logout failed:", error);
     }
