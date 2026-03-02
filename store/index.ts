@@ -293,69 +293,57 @@ export const useStore: any = create((set: any, get: any) => ({
     } else {
       const savedLoginType = typeof window !== "undefined" ? localStorage.getItem("loginType") : null;
       const savedToken = typeof window !== 'undefined' ? get().token : null;
-      // console.log("initAuth: savedToken =", savedToken);
+
+      const fallbackToFirebaseAuth = () => {
+        onAuthStateChanged(get().auth, async (fbUser) => {
+          if (get().user?.isTestUser) {
+            console.log("Already logged in as test user, ignoring Firebase Auth state change.");
+            set({ authChecked: true });
+            return;
+          }
+
+          if (fbUser) {
+            set({ authChecked: true, loginType: "google" });
+            await get().setUserAndLoadData(fbUser);
+          } else {
+            get().clearUserAndData();
+          }
+        });
+      };
+
       const restoreFromCookie = async () => {
         try {
           const me = await firebaseGetMeApi(savedToken ?? "");
-          set({ user: me, authChecked: true, loginType: "email" });
+          set({
+            user: me,
+            authChecked: true,
+            loginType: savedLoginType === "test" ? "test" : (savedLoginType ?? "google"),
+            token: me.accessToken ?? null,
+          });
           await get().setUserAndLoadData(me);
           return true;
         } catch {
           return false;
         }
       };
-      
+
       // 1) testId 우선
       if (testId) {
         console.log(`Attempting auto login with test ID: ${testId}`);
-
-        // Zustand 스토어가 완전히 초기화된 후 실행되도록 setTimeout 사용
         setTimeout(() => {
-          // Firebase Auth 상태 확인 전에 테스트 로그인을 시도
-          if (!get().user) { // 이미 로그인된 사용자가 없는 경우에만 실행
+          if (!get().user) {
             get().loginWithTestId(testId);
           } else {
             console.log("User already logged in, skipping auto test login.");
           }
         }, 0);
-      }
-
-      // 2) 이전에 email 로그인 이력이 있으면 쿠키 복구 먼저 시도
-      if (savedLoginType === "email") {
-        restoreFromCookie().then((ok) => {
-          if (ok) return;
-
-          // 실패하면 Firebase Auth 흐름으로
-          onAuthStateChanged(get().auth, async (fbUser) => {
-            if (fbUser) {
-              set({ authChecked: true, loginType: "google" });
-              await get().setUserAndLoadData(fbUser);
-            } else {
-              get().clearUserAndData();
-            }
-          });
-        });
         return;
       }
 
-      // 3) 기본은 Firebase Auth
-      onAuthStateChanged(get().auth, async (user) => {
-        // console.log("Firebase Auth state changed:", user);
-        // 이미 테스트 사용자로 로그인되어 있으면 Firebase Auth 상태 변경 무시
-        if (get().user?.isTestUser) {
-          console.log("Already logged in as test user, ignoring Firebase Auth state change.");
-          set({ authChecked: true });
-          return;
-        }
-
-        if (user) {
-          // console.log("User logged in via Firebase Auth:========= > ", user);
-          set({ authChecked: true, loginType: "google" });
-          get().setUserAndLoadData(user);
-        } else {
-          // 로그아웃 시에도 URL 파라미터 체크 로직을 다시 타지 않도록 clearUserAndData만 호출
-          get().clearUserAndData();
-        }
+      // 2) Firebase 모드에서는 로그인 타입과 상관없이 쿠키 세션 복구 우선
+      restoreFromCookie().then((ok) => {
+        if (ok) return;
+        fallbackToFirebaseAuth();
       });
     }
   },
