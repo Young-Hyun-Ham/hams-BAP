@@ -16,14 +16,14 @@ export async function GET(req: NextRequest) {
 
     // const token = auth.replace("Bearer ", "");
     const payload = verifyJwt(token);
-    // console.log("payload 데이터 : ", payload)
-    if (!payload || !payload.uid) {
+    const userId = payload?.uid ?? payload?.id ?? payload?.userId ?? payload?.sub;
+    if (!payload || !userId) {
       return NextResponse.json({ error: "Invalid token" }, { status: 402 });
     }
 
     const result = await db.query(
       "SELECT id, email, name, avatar_url FROM users WHERE id = $1",
-      [payload.uid]
+      [userId]
     );
 
     if (result.rowCount === 0) {
