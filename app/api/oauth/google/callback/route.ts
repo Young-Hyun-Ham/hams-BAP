@@ -102,12 +102,26 @@ export async function GET(req: Request) {
 
   // 3) 사용자 upsert (스키마에 맞게 조정)
   let users: any = await db.query(
-      "SELECT id, sub, email, name, roles, 'google' as provider, avatar_url FROM users WHERE email = $1 limit 1;",
-      [email]
+    "SELECT id, sub, email, name, roles, 'google' as provider, avatar_url FROM users WHERE email = $1 limit 1;",
+    [email]
+  );
+
+  if (users.rowCount === 0) {
+    users = await db.query(
+      `
+      INSERT INTO users (sub, email, name, roles)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, sub, email, name, roles, 'google' as provider, avatar_url
+      `,
+      [sub, email, name, ['user']]
     );
+  }
+
   const user = users.rows[0] ?? {};
   if (!user || Object.keys(user).length === 0) {
-    throw new Error('유저 정보가 없습니다.');
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_ORIGIN ?? 'http://localhost:3000'}/login?err=user_upsert`
+    );
   }
 
   const roles: roleTypes[] =
@@ -174,7 +188,7 @@ export async function GET(req: Request) {
               {
                 type: "google-auth",
                 accessToken: ${JSON.stringify(access)},
-                refershToken: ${JSON.stringify(refresh)},
+                refreshToken: ${JSON.stringify(refresh)},
                 user: ${JSON.stringify(safeUser)}
               },
               ${JSON.stringify(origin)}
@@ -215,6 +229,7 @@ export async function GET(req: Request) {
   // 일회성 쿠키 삭제
   res.cookies.set('g_state', '', { path: '/', maxAge: 0 });
   res.cookies.set('g_nonce', '', { path: '/', maxAge: 0 });
+  res.cookies.set('g_flow', '', { path: '/', maxAge: 0 });
   res.cookies.set('post_login_redirect', '', { path: '/', maxAge: 0 });
 
   return res;
