@@ -1,6 +1,6 @@
 # HAMS-BAP Page Docs
 
-`app/**/page.tsx` 기준 화면 문서 인덱스입니다.
+`app/**/page.tsx` 기준 화면 문서 인덱스다.
 
 ## 공용 화면
 
@@ -40,8 +40,11 @@
 - `/admin/builder` -> [sidebar-header/admin/builder.md](./sidebar-header/admin/builder.md)
 - `/admin/board` -> [sidebar-header/admin/board.md](./sidebar-header/admin/board.md)
 
+## 관련 작업 로그
+
+- `2026-03-11 / builder React Flow UI 개선` -> [../job/20260311/builder-react-flow-ui.md](../job/20260311/builder-react-flow-ui.md)
+
 ## 작성 메모
 
-- 문서는 구현 코드 기준 요약이다.
-- 상세 API 스펙은 별도 README 또는 `app/api/**` 문서와 함께 봐야 한다.
-- 운영 준비가 끝나지 않은 화면은 문서에 별도 표시했다.
+- 문서는 구현 코드 기준의 요약이다.
+- 상세 API 스펙은 `app/api/**` 문서나 별도 README를 우선한다.
