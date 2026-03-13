@@ -29,6 +29,7 @@ const executorMap = {
   toast: nodeExecutor.toast,
   iframe: nodeExecutor.iframe,
   scenario: nodeExecutor.scenario,
+  selectionGroup: nodeExecutor.selectionGroup,
 };
 
 export const useChatFlow = (nodes, edges) => {
@@ -92,18 +93,21 @@ export const useChatFlow = (nodes, edges) => {
     }
     // Process the next edge
     if (nextEdge) {
-      const nextNode = nodes.find(node => node.id === nextEdge.target);
-      if (nextNode) {
-        setCurrentId(nextNode.id);
-        // Use the ref to call the latest addBotMessage asynchronously
-        if (addBotMessageRef.current) {
-             addBotMessageRef.current(nextNode.id, updatedSlots, activeChainId);
-        }
-      } else {
-         console.warn(`Next node with id ${nextEdge.target} not found.`);
-         setCurrentId(null); // Stop flow if next node doesn't exist
-      }
-    } else {
+      const nextNode = nodes.find((node) => node.id === nextEdge.target);
+
+      if (nextNode) {
+        setCurrentId(nextNode.id);
+        if (addBotMessageRef.current) {
+          addBotMessageRef.current(nextNode.id, updatedSlots, activeChainId);
+        }
+      } else {
+        console.warn(
+          `Next node with id ${nextEdge.target} not found. ` +
+          `source=${nextEdge.source}, edgeId=${nextEdge.id}`
+        );
+        setCurrentId(null);
+      }
+    } else {
       // Handle cases where there's no outgoing edge (e.g., end of flow, node inside a group)
       const sourceNode = nodes.find(n => n.id === sourceNodeId);
       // If the node is inside a group, try to find an edge from the parent group node

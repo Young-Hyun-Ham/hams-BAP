@@ -1,7 +1,7 @@
 // app/(content-header)/chatbot/components/emulator/handlers/createUiHandlers.ts
 import type { AnyNode } from "../../../types";
 import { makeStepId } from "../../../utils";
-import { findNextNode } from "../core/graph";
+import { findNextExecutableNode } from "../core/graph";
 
 export function createUiHandlers(deps: {
   // graph
@@ -42,7 +42,7 @@ export function createUiHandlers(deps: {
   const handleContinueFromMessage = () => {
     if (!currentNode) return;
 
-    const next = findNextNode(nodes, edges, currentNode.id, null);
+    const next = findNextExecutableNode(nodes, edges, currentNode.id, null);
     if (!next) {
       setFinished(true);
       return;
@@ -60,8 +60,8 @@ export function createUiHandlers(deps: {
     if (!currentNode) return;
 
     const next =
-      findNextNode(nodes, edges, currentNode.id, "default") ||
-      findNextNode(nodes, edges, currentNode.id, null);
+      findNextExecutableNode(nodes, edges, currentNode.id, "default") ||
+      findNextExecutableNode(nodes, edges, currentNode.id, null);
 
     if (!next) {
       setFinished(true);
@@ -82,7 +82,7 @@ export function createUiHandlers(deps: {
 
     pushUserStep(makeStepId(`${currentNode.id}-${reply.value}`), reply.display);
 
-    const next = findNextNode(nodes, edges, currentNode.id, reply.value);
+    const next = findNextExecutableNode(nodes, edges, currentNode.id, reply.value);
     if (!next) {
       setFinished(true);
       return;
@@ -195,7 +195,7 @@ export function createUiHandlers(deps: {
       summaryParts.length > 0 ? summaryParts.join("\n") : "폼을 제출했습니다.",
     );
 
-    const next = findNextNode(nodes, edges, currentNode.id, null);
+    const next = findNextExecutableNode(nodes, edges, currentNode.id, null);
     if (!next) {
       setFinished(true);
       return;
@@ -214,7 +214,7 @@ export function createUiHandlers(deps: {
   const handleNextFromLink = () => {
     if (!currentNode) return;
 
-    const next = findNextNode(nodes, edges, currentNode.id, null);
+    const next = findNextExecutableNode(nodes, edges, currentNode.id, null);
     if (!next) {
       setFinished(true);
       return;
@@ -233,7 +233,7 @@ export function createUiHandlers(deps: {
   const handleContinueFromIframe = () => {
     if (!currentNode) return;
 
-    const next = findNextNode(nodes, edges, currentNode.id, null);
+    const next = findNextExecutableNode(nodes, edges, currentNode.id, null);
     if (!next) {
       setFinished(true);
       return;
@@ -257,9 +257,9 @@ export function createUiHandlers(deps: {
 
     const handle = String(reply.value);
     const next =
-      findNextNode(nodes, edges, currentNode.id, handle) ||
-      findNextNode(nodes, edges, currentNode.id, "default") ||
-      findNextNode(nodes, edges, currentNode.id, null);
+      findNextExecutableNode(nodes, edges, currentNode.id, handle) ||
+      findNextExecutableNode(nodes, edges, currentNode.id, "default") ||
+      findNextExecutableNode(nodes, edges, currentNode.id, null);
 
     if (!next) {
       setFinished(true);

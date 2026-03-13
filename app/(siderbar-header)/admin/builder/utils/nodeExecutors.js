@@ -162,6 +162,11 @@ export const scenario = (context) => {
   const { node, updatedSlots, activeChainId, proceedToNextNode, nodes, edges, setCurrentId, addBotMessage } = context;
   
   const childNodes = nodes.filter(n => n.parentNode === node.id);
+  // group 노드 추가로 인한 체크로직 추가
+  if (childNodes.length === 0) {
+    proceedToNextNode(null, node.id, updatedSlots, activeChainId);
+    return;
+  }
   const childNodeIds = new Set(childNodes.map(n => n.id));
   
   // 그룹 내부의 시작 노드 찾기 (들어오는 엣지가 없는 노드)
@@ -222,4 +227,46 @@ export const branch = (context) => {
     // Condition Branch는 invisible과 동일하게 처리
     invisible(context);
   }
+};
+
+// 추가 노드 : Group Selection 
+export const selectionGroup = (context) => {
+  const {
+    node,
+    updatedSlots,
+    activeChainId,
+    proceedToNextNode,
+    nodes,
+    edges,
+    setCurrentId,
+    addBotMessage,
+  } = context;
+
+  const childNodes = nodes.filter((n) => n.parentNode === node.id);
+  if (childNodes.length === 0) {
+    proceedToNextNode(null, node.id, updatedSlots, activeChainId);
+    return;
+  }
+
+  const childNodeIds = new Set(childNodes.map((n) => n.id));
+
+  let startNode = null;
+
+  if (node.data?.entryNodeId) {
+    startNode = childNodes.find((n) => n.id === node.data.entryNodeId) || null;
+  }
+
+  if (!startNode) {
+    startNode = childNodes.find(
+      (n) => !edges.some((e) => e.target === n.id && childNodeIds.has(e.source))
+    );
+  }
+
+  if (startNode) {
+    setCurrentId(startNode.id);
+    addBotMessage(startNode.id, updatedSlots, activeChainId);
+    return;
+  }
+
+  proceedToNextNode(null, node.id, updatedSlots, activeChainId);
 };

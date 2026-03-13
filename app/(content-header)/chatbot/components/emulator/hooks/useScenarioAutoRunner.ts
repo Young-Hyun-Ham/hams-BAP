@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import type { AnyNode } from "../../../types";
 import { makeStepId } from "../../../utils";
-import { findNextNode } from "../core/graph";
+import { findNextExecutableNode } from "../core/graph";
 
 export function useScenarioAutoRunner(args: {
   currentNode: AnyNode | null;
@@ -45,11 +45,11 @@ export function useScenarioAutoRunner(args: {
     // ✅ "한 번만 출력" 메시지는 절대 랜덤 id 쓰면 안 됨 (입력/리렌더마다 계속 찍힘)
     const promptStepId = (nodeId: string) => `prompt:${nodeId}`;
 
-    const goNext = (handle?: string | null) => {
+        const goNext = (handle?: string | null) => {
       const next =
-        (handle ? findNextNode(args.nodes, args.edges, currentNode.id, handle) : null) ||
-        findNextNode(args.nodes, args.edges, currentNode.id, "default") ||
-        findNextNode(args.nodes, args.edges, currentNode.id, null);
+        findNextExecutableNode(args.nodes, args.edges, currentNode.id, handle) ||
+        findNextExecutableNode(args.nodes, args.edges, currentNode.id, "default") ||
+        findNextExecutableNode(args.nodes, args.edges, currentNode.id, null);
 
       if (!next) {
         args.setFinished(true);
@@ -58,8 +58,6 @@ export function useScenarioAutoRunner(args: {
 
       args.setCurrentNodeId(next.id);
 
-      // ✅ message만 여기서 즉시 출력
-      // (branch/form/link/iframe/slotfilling은 "노드 진입 시점" case에서 promptStepId로 1회 출력)
       if (next.type === "message") {
         args.pushBotStep(makeStepId(next.id), next.data?.content ?? "");
       }
@@ -109,7 +107,7 @@ export function useScenarioAutoRunner(args: {
           if (cancelled) return;
 
           if (!ok) {
-            const failNext = findNextNode(args.nodes, args.edges, currentNode.id, "onFail");
+            const failNext = findNextExecutableNode(args.nodes, args.edges, currentNode.id, "onFail");
             if (failNext) {
               args.setCurrentNodeId(failNext.id);
               if (failNext.type === "message") {

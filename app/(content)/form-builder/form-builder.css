@@ -1,0 +1,219 @@
+/* app/(content)/form-builder/form-builder.css */
+.form-builder-light {
+  color-scheme: light;
+}
+
+/* 전체 기본 톤 */
+.form-builder-light .formio-formbuilder,
+.form-builder-light .builder-sidebar,
+.form-builder-light .accordion,
+.form-builder-light .accordion-item,
+.form-builder-light .accordion-body,
+.form-builder-light .formcomponents,
+.form-builder-light .drag-container {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* 검색 input 제거 */
+.form-builder-light input[placeholder="Search field(s)"],
+.form-builder-light .form-builder-search,
+.form-builder-light .builder-search,
+.form-builder-light .formio-builder-search {
+  display: none !important;
+}
+
+/* 검색 input 감싸는 상단 여백 제거 */
+.form-builder-light .builder-sidebar > div:first-child:has(input),
+.form-builder-light .builder-sidebar .card:first-child:has(input),
+.form-builder-light .builder-sidebar .mb-2:has(input) {
+  display: none !important;
+}
+
+/* 아코디언 아이템 */
+.form-builder-light .accordion-item {
+  border: 1px solid #dbe3ee !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  margin-bottom: 10px !important;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* 아코디언 버튼 */
+.form-builder-light .accordion-button {
+  background: #f8fafc !important;
+  color: #111827 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+  padding: 12px 14px !important;
+}
+
+.form-builder-light .accordion-button:not(.collapsed) {
+  background: #eef4ff !important;
+  color: #1e3a8a !important;
+}
+
+/* 그룹 내부 컨테이너를 2열 카드형으로 */
+.form-builder-light #group-container-basic,
+.form-builder-light #group-container-advanced,
+.form-builder-light #group-container-layout,
+.form-builder-light #group-container-data,
+.form-builder-light #group-container-premium {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  padding: 12px !important;
+  background: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* 노드 카드 */
+.form-builder-light .formcomponent {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+
+  width: 100% !important;
+  min-height: 86px !important;
+  padding: 12px 8px !important;
+  margin: 0 !important;
+
+  border-radius: 14px !important;
+  border: 1.5px solid #2563eb !important;
+  background: #ffffff !important;
+  color: #2563eb !important;
+
+  text-align: center !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.08) !important;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease,
+    border-color 0.16s ease !important;
+}
+
+/* hover */
+.form-builder-light .formcomponent:hover {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.16) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* bootstrap outline 버튼 변수 강제 */
+.form-builder-light .btn-outline-primary {
+  --bs-btn-color: #2563eb !important;
+  --bs-btn-border-color: #2563eb !important;
+  --bs-btn-hover-color: #1d4ed8 !important;
+  --bs-btn-hover-bg: #eff6ff !important;
+  --bs-btn-hover-border-color: #1d4ed8 !important;
+  --bs-btn-active-color: #1d4ed8 !important;
+  --bs-btn-active-bg: #dbeafe !important;
+  --bs-btn-active-border-color: #1d4ed8 !important;
+}
+
+/* 아이콘 */
+.form-builder-light .formcomponent i,
+.form-builder-light .formcomponent svg {
+  display: block !important;
+  margin: 0 !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+  color: #2563eb !important;
+  fill: #2563eb !important;
+}
+
+/* 텍스트만 따로 정리 */
+.form-builder-light .formcomponent span,
+.form-builder-light .formcomponent strong,
+.form-builder-light .formcomponent small {
+  color: inherit !important;
+}
+
+/* 일반 input은 라이트 유지 */
+.form-builder-light input,
+.form-builder-light .form-control,
+.form-builder-light select,
+.form-builder-light textarea {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* 우측 드롭영역도 부드럽게 */
+.form-builder-light .drag-container,
+.form-builder-light .formarea {
+  background: #ffffff !important;
+  border-radius: 18px !important;
+}
+
+/* 반응형에서 너무 좁으면 1열 */
+@media (max-width: 640px) {
+  .form-builder-light #group-container-basic,
+  .form-builder-light #group-container-advanced,
+  .form-builder-light #group-container-layout,
+  .form-builder-light #group-container-data,
+  .form-builder-light #group-container-premium {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+}
+
+
+
+/* ===== Component Edit Popup ===== */
+
+.form-builder-light .formio-dialog .modal-dialog {
+  max-width: 900px !important;
+}
+
+.form-builder-light .formio-dialog .modal-content {
+  border-radius: 18px !important;
+  border: none !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2) !important;
+}
+
+/* header */
+.form-builder-light .formio-dialog .modal-header {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  font-weight: 600 !important;
+}
+
+/* body */
+.form-builder-light .formio-dialog .modal-body {
+  background: #ffffff !important;
+  padding: 24px !important;
+}
+
+/* footer */
+.form-builder-light .formio-dialog .modal-footer {
+  border-top: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+}
+
+/* Save 버튼 */
+.form-builder-light .formio-dialog .btn-primary {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+}
+
+/* Cancel 버튼 */
+.form-builder-light .formio-dialog .btn-secondary {
+  border-radius: 8px !important;
+}

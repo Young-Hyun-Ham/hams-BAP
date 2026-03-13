@@ -121,7 +121,7 @@ const Scenario = () => {
   }
 
   return (
-    <>
+    <div className="h-full min-h-0 overflow-hidden">
       {hasScenario ? 
         <ScenarioDetail 
           scenario={selectedScenario} 
@@ -146,7 +146,7 @@ const Scenario = () => {
         onSave={handleSaveScenario}
         scenario={editingScenario}
       />
-    </>
+    </div>
   );
 };
 

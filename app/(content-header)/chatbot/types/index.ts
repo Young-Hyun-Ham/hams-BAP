@@ -80,6 +80,7 @@ export type AnyNode = {
   id: string;
   type: string;
   data: any;
+  parentNode?: string;
 };
 
 export type AnyEdge = {

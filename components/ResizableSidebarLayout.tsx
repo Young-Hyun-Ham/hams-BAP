@@ -261,9 +261,10 @@ export default function ResizableSidebarLayout({ header, sidebar, children }: Si
         </div>
 
         {/* 우측 컨텐츠: 좌측 가장자리도 은은한 그림자 */}
-        <main className="relative flex-1 min-w-0 overflow-y-auto bg-gray-50">
-          {/* 상,하,좌,우 여백 p6 -> p2 로 변경 함 */}
-          <div className="p-2">{children}</div>
+        <main className="relative flex-1 min-w-0 overflow-hidden bg-gray-50">
+          <div className="h-full min-h-0 p-2 overflow-hidden">
+            {children}
+          </div>
         </main>
       </div>
     </div>
