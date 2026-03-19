@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store';
 import { useModal } from '@/providers/ModalProvider';
+import * as utils from '@/lib/utils/utils';
 
 import ReactFlow, { Controls, useReactFlow, MiniMap, Background, MarkerType, Panel, SelectionMode } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -210,7 +211,7 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
   const [isMemoVisible, setIsMemoVisible] = useState(false);
   const [memos, setMemos] = useState([
     {
-      id: crypto.randomUUID(),
+      id: utils.getSafeUUID(),
       text: "",
       backgroundColor: "#fff7c2",
       textColor: "#111827",
@@ -253,7 +254,7 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
     setMemoNodes((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: utils.getSafeUUID(),
         x: center.x - 120,
         y: center.y - 80,
         backgroundOpacity: 0.9,

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import styles from "./MemoPad.module.css";
+import * as utils from '@/lib/utils/utils';
 
 type ColorRange = {
   start: number;
@@ -135,7 +136,7 @@ export default function MemoPad({ memos, setMemos }: MemoPadProps) {
     setMemos((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: utils.getSafeUUID(),
         text: "",
         backgroundColor: "#fff7c2",
         ranges: [],
