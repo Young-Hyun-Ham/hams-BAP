@@ -1,4 +1,4 @@
-import type { Edge } from 'reactflow';
+import type { Node, Edge } from 'reactflow';
 import { makeSnapshot, type StoreState } from './index';
 import useBuilderHistoryStore from './historyStore';
 
@@ -16,6 +16,25 @@ type EdgeControlActionSlice = Pick<
   StoreState,
   'updateEdgeSegment' | 'updateEdgePoints'
 >;
+
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefinedDeep(item)) as T;
+  }
+
+  if (value && typeof value === 'object') {
+    const next: Record<string, unknown> = {};
+
+    Object.entries(value as Record<string, unknown>).forEach(([key, current]) => {
+      if (current === undefined) return;
+      next[key] = stripUndefinedDeep(current);
+    });
+
+    return next as T;
+  }
+
+  return value;
+}
 
 export function createEdgeControlActionStore(
   set: SetState,
@@ -61,17 +80,24 @@ export function createEdgeControlActionStore(
   };
 }
 
+export function sanitizeNodesForSave(nodes: Node<any>[]): Node<any>[] {
+  return nodes.map((node) => stripUndefinedDeep(node));
+}
+
+
 export function sanitizeEdgesForSave(edges: Edge<any>[]): Edge<any>[] {
   return edges.map((edge) => {
-    if (!edge.data) {
-      return edge;
-    }
+    const cleanedData = edge.data
+      ? (() => {
+          const { updateEdgeSegment, updateEdgePoints, ...restData } = edge.data;
+          return restData;
+        })()
+      : undefined;
 
-    const { updateEdgeSegment, updateEdgePoints, ...restData } = edge.data;
-
-    return {
+    return stripUndefinedDeep({
       ...edge,
-      data: restData,
-    };
+      data: cleanedData,
+    });
   });
 }
+

@@ -21,9 +21,51 @@ import { createGroupActionStore } from './groupActionStore';
 import {
   createEdgeControlActionStore,
   sanitizeEdgesForSave,
+  sanitizeNodesForSave,
   type EdgePoint,
 } from './edgeControlActionStore';
 import useBuilderHistoryStore, { GraphSnapshot } from './historyStore';
+
+// ================================================================
+// 플레이 타입 설정
+export type ExecutionPhase =
+  | "start"
+  | "enter"
+  | "complete"
+  | "wait"
+  | "error"
+  | "finish";
+
+export type ExecutionLog = {
+  at: string;
+  phase: ExecutionPhase;
+  nodeId?: string;
+  nodeType?: string;
+  message?: string;
+  payload?: any;
+};
+
+type ExecutionState = {
+  executionRunning: boolean;
+  executionCurrentNodeId: string | null;
+  executionCompletedNodeIds: string[];
+  executionVisitedNodeIds: string[];
+  executionLogs: ExecutionLog[];
+  executionStartedAt: string | null;
+  executionEndedAt: string | null;
+  executionError: string | null;
+};
+
+type ExecutionActions = {
+  resetExecution: () => void;
+  startExecution: (meta?: { startNodeId?: string | null; anchorNodeId?: string | null }) => void;
+  setExecutionCurrentNode: (nodeId: string | null) => void;
+  markExecutionCompleted: (nodeId: string) => void;
+  appendExecutionLog: (log: ExecutionLog) => void;
+  finishExecution: (message?: string) => void;
+  failExecution: (message: string, extra?: Partial<ExecutionLog>) => void;
+};
+// ================================================================
 
 /* 1) 노드 타입(키) 고정 */
 export type NodeType =
@@ -154,6 +196,7 @@ export type StoreState = {
   setSelectedNodeId: (nodeId: string | null) => void;
 
   deleteNode: (nodeId: string) => void;
+  deleteNodesByIds: (nodeIds: string[]) => void;
   toggleScenarioNode: (nodeId: string) => void;
   deleteSelectedEdges: () => void;
 
@@ -358,19 +401,97 @@ const useBuilderStore = create<StoreState>((set, get) => ({
   setNodeTextColor: async (type, color) => {
     const newColors: ColorMap = { ...get().nodeTextColors, [type]: color };
     set({ nodeTextColors: newColors });
-    try {
-      await setDoc(doc(db, 'settings', 'nodeTextColors'), newColors);
-    } catch (e) {
-      console.error('Failed to save node text colors to DB', e);
-    }
-  },
-
-  onNodesChange: (changes) => {
+      try {
+        await setDoc(doc(db, 'settings', 'nodeTextColors'), newColors);
+      } catch (e) {
+        console.error('Failed to save node text colors to DB', e);
+      }
+    },
+    // 20260316 - 노드 이동 시 edges의 start좌표, end좌표도 같이 이동 하도록 수정
+    onNodesChange: (changes) => {
     if (shouldRecordNodeChanges(changes)) {
       useBuilderHistoryStore.getState().push(makeSnapshot(get()));
     }
-    set({ nodes: applyNodeChanges(changes, get().nodes) })
+
+    const prevNodes = get().nodes;
+    const prevEdges = get().edges;
+    const nextNodes = applyNodeChanges(changes, prevNodes);
+
+    const movedChanges = (changes as any[]).filter(
+      (change: any) =>
+        change?.type === 'position' &&
+        change?.position &&
+        change?.dragging
+    );
+
+    if (movedChanges.length === 0) {
+      set({ nodes: nextNodes });
+      return;
+    }
+
+    const deltaByNodeId = new Map<string, any>();
+
+    for (const change of movedChanges) {
+      const prevNode = prevNodes.find((node: any) => node.id === change.id);
+      if (!prevNode || !change.position) continue;
+
+      deltaByNodeId.set(change.id, {
+        dx: change.position.x - prevNode.position.x,
+        dy: change.position.y - prevNode.position.y,
+      });
+    }
+
+    const nextEdges = prevEdges.map((edge: any) => {
+      const sourceDelta: any = deltaByNodeId.get(edge.source) ?? null;
+      const targetDelta: any = deltaByNodeId.get(edge.target) ?? null;
+
+      const sameDelta: any =
+        sourceDelta &&
+        targetDelta &&
+        sourceDelta.dx === targetDelta.dx &&
+        sourceDelta.dy === targetDelta.dy
+          ? sourceDelta
+          : null;
+
+      const shouldTranslate = !!edge.selected || !!sameDelta;
+
+      if (!shouldTranslate) {
+        return edge;
+      }
+
+      const dx =
+        sameDelta?.dx ?? sourceDelta?.dx ?? targetDelta?.dx ?? 0;
+      const dy =
+        sameDelta?.dy ?? sourceDelta?.dy ?? targetDelta?.dy ?? 0;
+
+      return {
+        ...edge,
+        data: {
+          ...(edge.data ?? {}),
+          points: Array.isArray(edge.data?.points)
+            ? edge.data.points.map((point: any) => ({
+                x: point.x + dx,
+                y: point.y + dy,
+              }))
+            : edge.data?.points,
+          controlX:
+            typeof edge.data?.controlX === 'number'
+              ? edge.data.controlX + dx
+              : edge.data?.controlX,
+          controlY:
+            typeof edge.data?.controlY === 'number'
+              ? edge.data.controlY + dy
+              : edge.data?.controlY,
+        },
+      };
+    });
+
+    set({
+      nodes: nextNodes,
+      edges: nextEdges,
+    });
   },
+
   onEdgesChange: (changes) => {
     if (shouldRecordEdgeChanges(changes)) {
       useBuilderHistoryStore.getState().push(makeSnapshot(get()));
@@ -412,6 +533,52 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       };
     });
   },
+  
+  deleteNodesByIds: (nodeIds) => {
+    if (!nodeIds.length) return;
+
+    useBuilderHistoryStore.getState().push(makeSnapshot(get()));
+
+    set((state) => {
+      const removeSet = new Set<string>();
+
+      const collectNodeAndChildren = (targetId: string) => {
+        if (removeSet.has(targetId)) return;
+
+        const targetNode = state.nodes.find((node) => node.id === targetId);
+        if (!targetNode) return;
+
+        removeSet.add(targetId);
+
+        if (targetNode.type === "scenario" || targetNode.type === "selectionGroup") {
+          state.nodes
+            .filter((child) => child.parentNode === targetId)
+            .forEach((child) => collectNodeAndChildren(child.id));
+        }
+      };
+
+      nodeIds.forEach(collectNodeAndChildren);
+
+      const remainingNodes = state.nodes.filter((node) => !removeSet.has(node.id));
+      const remainingEdges = state.edges.filter(
+        (edge) => !removeSet.has(edge.source) && !removeSet.has(edge.target)
+      );
+
+      return {
+        nodes: remainingNodes,
+        edges: remainingEdges,
+        selectedNodeId:
+          state.selectedNodeId && removeSet.has(state.selectedNodeId)
+            ? null
+            : state.selectedNodeId,
+        startNodeId:
+          state.startNodeId && removeSet.has(state.startNodeId)
+            ? null
+            : state.startNodeId,
+      };
+    });
+  },
+
 
   toggleScenarioNode: (nodeId) => {
     set((state) => {
@@ -822,7 +989,7 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       await backendService.saveScenarioData(backend, {
         scenario,
         data: {
-          nodes,
+          nodes: sanitizeNodesForSave(nodes),
           edges: sanitizeEdgesForSave(edges),
           startNodeId,
         },

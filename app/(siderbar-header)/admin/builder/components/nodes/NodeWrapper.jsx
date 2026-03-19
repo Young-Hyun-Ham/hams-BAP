@@ -4,6 +4,9 @@ import styles from './ChatNodes.module.css';
 import useBuilderStore from '../../store/index';
 import { AnchorIcon, StartNodeIcon } from '../icons/Icons';
 
+import { Loader2, CheckCircle2 } from "lucide-react";
+import { builderExecutionStore } from "../../store/builderExecutionStore";
+
 /**
  * 모든 노드에서 공통으로 사용되는 래퍼 컴포넌트입니다.
  * 헤더, 버튼(시작, 앵커, 삭제), 공통 스타일, 기본 핸들을 관리합니다.
@@ -41,11 +44,31 @@ function NodeWrapper({
   const isAnchored = anchorNodeId === id;
   const isStartNode = startNodeId === id;
 
+  // 플레이 추가
+  const executionRunning = builderExecutionStore((state) => state.executionRunning);
+  const executionCurrentNodeId = builderExecutionStore((state) => state.executionCurrentNodeId);
+  const executionCompletedNodeIds = builderExecutionStore((state) => state.executionCompletedNodeIds);
+
+  const isRunningNode = executionRunning && executionCurrentNodeId === id;
+  const isCompletedNode = executionCompletedNodeIds.includes(id);
+
+
   return (
     <div
       className={`${styles.nodeWrapper} ${isAnchored ? styles.anchored : ''} ${isStartNode ? styles.startNode : ''} ${customClassName}`}
       style={style}
     >
+      {/* 20260316 - 플레이 추가 */}
+      {isRunningNode ? (
+        <div className={`${styles.executionBadge} ${styles.executionBadgeRunning}`}>
+          <Loader2 size={16} className={styles.executionSpinner} />
+        </div>
+      ) : isCompletedNode ? (
+        <div className={`${styles.executionBadge} ${styles.executionBadgeDone}`}>
+          <CheckCircle2 size={16} />
+        </div>
+      ) : null}
+      
       {/* 1. 공통 입력 핸들 */}
       <Handle type="target" position={Position.Left} />
 

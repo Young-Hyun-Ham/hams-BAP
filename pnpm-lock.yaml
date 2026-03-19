@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@chatbot/scenario-core':
+        specifier: file:./core/scenario-core
+        version: '@clt-chatbot/scenario-core@file:core/scenario-core'
       '@formio/js':
         specifier: 5.2.6
         version: 5.2.6(@popperjs/core@2.11.8)
@@ -230,6 +233,9 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@clt-chatbot/scenario-core@file:core/scenario-core':
+    resolution: {directory: core/scenario-core, type: directory}
 
   '@emnapi/core@1.8.1':
     resolution: {integrity: sha512-AvT9QFpxK0Zd8J0jopedNm+w/2fIzvtPKPjqyw9jwvBaReTTqPBk9Hixaz7KbjimP+QNz605/XnjFcDAL2pqBg==}
@@ -3879,6 +3885,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@clt-chatbot/scenario-core@file:core/scenario-core': {}
 
   '@emnapi/core@1.8.1':
     dependencies:

@@ -9,7 +9,7 @@ const SimulatorHeader = ({ isVisible, isExpanded, setIsExpanded, onStart }) => {
         <img src="/images/icon.png" alt="AI Chatbot Icon" className={styles.headerIcon} />
         <div className={styles.headerTextContainer}>
           <span className={styles.headerTitle}>AI ChatBot</span>
-          <span className={styles.headerSubtitle}>Booking Master</span>
+          <span className={styles.headerSubtitle}>scenario simulator</span>
         </div>
       </div>
       <div className={styles.headerButtons}>

@@ -15,17 +15,62 @@ function ApiNode({ id, data }) {
   const apiCount = data.apis?.length || 0;
   const isMulti = data.isMulti;
 
-  // (isAnchored, isStartNode 로직 제거)
+  // 20260317 - 모달 Alert 추가
+  const openApiResultModal = async ({ title, payload, isError = false }) => {
+    const formatted =
+      typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+
+    await showAlert({
+      title,
+      okText: '닫기',
+      className: 'max-w-5xl',
+      message: (
+        <div className="mt-2">
+          <div className={`mb-3 text-sm font-semibold ${isError ? 'text-red-400' : 'text-emerald-400'}`}>
+            {isError ? 'Request failed' : 'Request succeeded'}
+          </div>
+
+          <pre
+            className="
+              max-h-[70vh]
+              overflow-auto
+              rounded-xl
+              bg-black/40
+              p-4
+              text-xs
+              leading-6
+              text-white/90
+              ring-1
+              ring-white/10
+              whitespace-pre-wrap
+              break-words
+            "
+          >
+            {formatted}
+          </pre>
+        </div>
+      ),
+    });
+  };
 
   const handleApiTest = async (e) => {
     e.stopPropagation();
     if (isMulti) return; // Multi 모드일 때는 컨트롤러에서 개별 테스트
     try {
       const result = await backendService.testApiCall(data);
-      await showAlert(`API Test Success!\n\nResponse:\n${JSON.stringify(result, null, 2)}`);
+      // await showAlert(`API Test Success!\n\nResponse:\n${JSON.stringify(result, null, 2)}`);
+      await openApiResultModal({
+        title: 'API Test Success',
+        payload: result,
+      });
     } catch (error) {
       console.error("API Test Error:", error);
-      await showAlert(`API Test Failed:\n${error.message}`);
+      // await showAlert(`API Test Failed:\n${error.message}`);
+      await openApiResultModal({
+        title: 'API Test Failed',
+        payload: error?.message || 'Unknown error',
+        isError: true,
+      });
     }
   };
 

@@ -1,6 +1,8 @@
 /* app/(siderbar-header)/admin/builder/components/nodes/ChatNodes.module.css */
 
 .nodeWrapper {
+  position: relative;
+  overflow: visible;
   width: 250px;
   background-color: white;
   border: 1px solid #c5c5c5;
@@ -115,7 +117,7 @@
 }
 .anchorButton.active,
 .anchorButton:hover {
-  color: white;
+  color: #e74c3c;
 }
 .nodeWrapper.anchored {
     border: 2px solid #e74c3c;
@@ -405,3 +407,45 @@
   margin-top: 4px; /* Add some space from the title */
 }
 /* <<< [수정 끝] >>> */
+
+/* 20260316 - 플레이 추가 */
+.nodeWrapper {
+  position: relative;
+  overflow: visible;
+}
+
+.executionBadge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  z-index: 30;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+}
+
+.executionBadgeRunning {
+  color: #6366f1;
+}
+
+.executionBadgeDone {
+  color: #10b981;
+}
+
+.executionSpinner {
+  animation: executionSpin 0.9s linear infinite;
+}
+
+@keyframes executionSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

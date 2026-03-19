@@ -55,6 +55,7 @@ function GroupNode({ id, data, selected }) {
         <span className={styles.headerTextContent}>Group: {title}</span>
 
         <div className={styles.headerButtons}>
+          {/* 20260316 - play 버튼으로 인해 startNodeId로 설정 안함.
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -72,7 +73,8 @@ function GroupNode({ id, data, selected }) {
           >
             <AnchorIcon />
           </button>
-
+          */}
+          
           <button
             onClick={(e) => {
               e.stopPropagation();
