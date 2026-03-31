@@ -1,13 +1,19 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
-import { Form } from "@formio/react";
 
 import SectionArea from "@/components/SectionArea";
-import FormBuilderCanvas from "./FormBuilderCanvas";
-
 import "./form-builder.css";
+
+const FormBuilderCanvas = dynamic(() => import("./FormBuilderCanvas"), {
+  ssr: false,
+});
+
+const FormPreview = dynamic(() => import("./FormPreview"), {
+  ssr: false,
+});
 
 const INITIAL_FORM: any = {
   type: "form",
@@ -28,7 +34,6 @@ export default function FormBuilderUI() {
   }, []);
 
   const handleRefreshPreview = useCallback(() => {
-    console.log("schema data =================>", latestSchemaRef.current)
     setPreviewSchema(latestSchemaRef.current);
   }, []);
 
@@ -65,7 +70,7 @@ export default function FormBuilderUI() {
                   <Typography variant="body2" fontWeight={600} mb={2}>
                     Preview
                   </Typography>
-                  <Form form={previewSchema} src={'#'} />
+                  <FormPreview schema={previewSchema} />
                 </div>
               </SectionArea>
             </div>
