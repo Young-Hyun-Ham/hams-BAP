@@ -10,7 +10,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@clt-chatbot/scenario-core": "^1.0.5",
     "@chatbot/scenario-core": "file:./core/scenario-core",
     "@formio/js": "5.2.6",
     "@formio/react": "6.1.2",
