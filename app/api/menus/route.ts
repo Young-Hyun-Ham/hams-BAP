@@ -7,7 +7,8 @@ export async function GET(req: NextRequest) {
   const backend = (process.env.NEXT_PUBLIC_BACKEND as "postgres" | "firebase" | undefined) ?? "firebase";
   const user = await getUserServer();
   const roles = Array.isArray(user?.roles) ? user.roles : [];
-  const isAdmin = roles.includes("admin");
+  const includeAdminAccount = process.env.NEXT_PUBLIC_ADMIN_ACCOUNT;
+  const isAdmin = includeAdminAccount && includeAdminAccount.includes(user?.email ?? "");
 
   const items = await getMenusByBackend(backend);
 

@@ -1,33 +1,26 @@
-// store/index.js
 import { create } from "zustand";
+
 import {
   db,
   auth,
-  onAuthStateChanged,
   doc,
   getDoc,
   collection,
-  getDocs,
   writeBatch,
   serverTimestamp,
-  addDoc,
   setDoc,
 } from "@/lib/firebase";
 import { locales } from "@/lib/locales";
-import { createAuthSlice as createFirebaseAuthSlice } from "@/store/slice/authSliceF";
-import { createAuthSlice as createPostgresAuthSlice } from "@/store/slice/authSliceP";
-import { postgresGetMeApi, firebaseGetMeApi } from '@/lib/api/auth';
+import { createAuthSlice } from "@/store/slice/authSliceSso";
 import { createUISlice } from "@/store/slice/uiSlice";
 import { NavItem, SidebarMenu } from "@/types/nav";
 import { User } from "@/types/user";
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND ?? 'firebase';
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND ?? "firebase";
 
-const getInitialMessages = (lang: any = "ko") => {
-  return [
-    { id: "initial", sender: "bot", text: locales[lang].initialBotMessage },
-  ];
-};
+const getInitialMessages = (lang: any = "ko") => [
+  { id: "initial", sender: "bot", text: locales[lang].initialBotMessage },
+];
 
 export const useStore: any = create((set: any, get: any) => ({
   db,
@@ -35,35 +28,36 @@ export const useStore: any = create((set: any, get: any) => ({
   user: null,
   authChecked: false,
   backend: BACKEND,
-  loginType: 'google', // 'google' | 'email' | 'test'
+  loginType: "sso",
 
   headerMenus: [],
-  setHeaderMMenus: (data: NavItem) => { set({ headerMenus: data }) },
+  setHeaderMMenus: (data: NavItem) => {
+    set({ headerMenus: data });
+  },
   sidebarMenus: [],
-  setSidebarMenus: (data: SidebarMenu) => { set({ sidebarMenus: data }) },
+  setSidebarMenus: (data: SidebarMenu) => {
+    set({ sidebarMenus: data });
+  },
 
-  // ==============================================================================
-  // admin sidebar collapse state
   adminSidebarCollapsed: false,
   setAdminSidebarCollapsed: (v: any) => set({ adminSidebarCollapsed: v }),
   toggleAdminSidebarCollapsed: () =>
     set({ adminSidebarCollapsed: !get().adminSidebarCollapsed }),
-  // ==============================================================================
 
-  setUser: (user: User) => { set({ user }); },
+  setUser: (user: User) => {
+    set({ user });
+  },
   setRoles: (role: string) => {
     const user = get().user;
     if (!user) return;
 
     const currentRoles = Array.isArray(user.roles) ? user.roles : [];
-
-    // 중복 체크 포함
     if (!currentRoles.includes(role)) {
       set({
         user: {
           ...user,
-          roles: Array.from(new Set([...(user.roles || []), role]))
-        }
+          roles: Array.from(new Set([...(user.roles || []), role])),
+        },
       });
     }
   },
@@ -74,26 +68,18 @@ export const useStore: any = create((set: any, get: any) => ({
     set({
       user: {
         ...user,
-        roles: (user.roles || []).filter((r: string) => r !== role)
-      }
+        roles: (user.roles || []).filter((r: string) => r !== role),
+      },
     });
   },
 
-  ...(BACKEND === 'postgres'
-    ? createPostgresAuthSlice(set, get)
-    : createFirebaseAuthSlice(set, get)),
-
-  ...(BACKEND === 'postgres'
-    ? createUISlice(set, get)
-    : createUISlice(set, get)),
+  ...createAuthSlice(set, get),
+  ...createUISlice(set, get),
 
   setUserAndLoadData: async (user: any) => {
     set({ user });
-    const includeAdminAccount = process.env.NEXT_PUBLIC_ADMIN_ACCOUNT ?? [''];
-    
-    /* ---------------------------------------------------
-    * Firebase 로그인 사용자 Firestore upsert 처리
-    * ---------------------------------------------------*/
+    const includeAdminAccount = process.env.NEXT_PUBLIC_ADMIN_ACCOUNT ?? [""];
+
     if (BACKEND === "firebase" && user?.uid) {
       try {
         const usersRef = collection(get().db, "users");
@@ -103,137 +89,106 @@ export const useStore: any = create((set: any, get: any) => ({
         const baseData = {
           sub: user.uid,
           email: user.email ?? null,
-          name: user.displayName ?? "",
+          name: user.displayName ?? user.name ?? "",
           avatar_url: user.photoURL ?? null,
-          provider: "google",
+          provider: user.provider ?? "sso",
           roles: user.roles ?? ["user"],
         };
 
         if (!snap.exists()) {
-          // 신규 사용자 → 자동 등록
           await setDoc(userRef, {
             ...baseData,
             createdAt: serverTimestamp(),
             lastLoginAt: serverTimestamp(),
           });
         } else {
-          // 기존 사용자 → 마지막 접속시간만 업데이트
-          await setDoc(
-            userRef,
-            { lastLoginAt: serverTimestamp() },
-            { merge: true }
-          );
+          await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
         }
-        set({ user: snap.data() });
       } catch (err) {
-        console.error("🔥 Firestore 사용자 upsert 실패:", err);
+        console.error("Firestore user upsert failed:", err);
       }
     }
 
     if (!Array.isArray(user.roles)) {
-      // 기본 user role
-      get().setRoles('user');
-
-      // 이메일이 admin 리스트에 있으면 admin도 추가
+      get().setRoles("user");
       if (user.email && includeAdminAccount.includes(user.email)) {
-        get().setRoles('admin');
+        get().setRoles("admin");
       }
-    } else {
-      // 이미 roles 배열이 있는 경우에도, 이메일 기준으로 admin 추가하고 싶으면
-      if (user.email && includeAdminAccount.includes(user.email)) {
-        get().setRoles('admin');
-      }
+    } else if (user.email && includeAdminAccount.includes(user.email)) {
+      get().setRoles("admin");
     }
 
-    if (BACKEND === 'postgres') {
+    if (BACKEND === "postgres") {
       try {
-        // const batch = writeBatch(get().db);
-        let updatesNeeded = 0;
-        if (updatesNeeded > 0) {
-
-        } else {
+        const updatesNeeded = 0;
+        if (updatesNeeded <= 0) {
           console.log("No conversation migration needed.");
         }
       } catch (error) {
         console.error("Conversation migration failed:", error);
       }
 
-      try {
-        const theme = localStorage.getItem("theme") || "light";
-        const fontSize = localStorage.getItem("fontSize") || "default";
-        const language = localStorage.getItem("language") || "ko";
+      const theme = localStorage.getItem("theme") || "light";
+      const fontSize = localStorage.getItem("fontSize") || "default";
+      const language = localStorage.getItem("language") || "ko";
 
-        set({
-          theme,
-          fontSize,
-          language,
-          messages: getInitialMessages(language),
-        });
-      } catch (error) {
-        console.error("Error loading settings:", error);
-        const theme = localStorage.getItem("theme") || "light";
-        const fontSize = localStorage.getItem("fontSize") || "default";
-        const language = localStorage.getItem("language") || "ko";
-        set({
-          theme,
-          fontSize,
-          language,
-          messages: getInitialMessages(language),
-        });
+      set({
+        theme,
+        fontSize,
+        language,
+        messages: getInitialMessages(language),
+      });
+      return;
+    }
+
+    try {
+      const batch = writeBatch(get().db);
+      const updatesNeeded = 0;
+      if (updatesNeeded > 0) {
+        await batch.commit();
+        console.log(`Migration complete: ${updatesNeeded} conversations updated.`);
+      } else {
+        console.log("No conversation migration needed.");
       }
-    } else {
-      try {
-        const batch = writeBatch(get().db);
-        let updatesNeeded = 0;
-        if (updatesNeeded > 0) {
-          await batch.commit();
-          console.log(
-            `Migration complete: ${updatesNeeded} conversations updated.`
-          );
-        } else {
-          console.log("No conversation migration needed.");
-        }
-      } catch (error) {
-        console.error("Conversation migration failed:", error);
-      }
+    } catch (error) {
+      console.error("Conversation migration failed:", error);
+    }
 
-      try {
-        const userSettingsRef = doc(get().db, "settings", user.uid ?? user?.sub);
-        const docSnap = await getDoc(userSettingsRef);
-        const settings = docSnap.exists() ? docSnap.data() : {};
+    try {
+      const userSettingsRef = doc(get().db, "settings", user.uid ?? user?.sub);
+      const docSnap = await getDoc(userSettingsRef);
+      const settings = docSnap.exists() ? docSnap.data() : {};
 
-        const theme = settings.theme || localStorage.getItem("theme") || "light";
-        const fontSize =
-          settings.fontSize || localStorage.getItem("fontSize") || "default";
-        const language =
-          settings.language || localStorage.getItem("language") || "ko";
+      const theme = settings.theme || localStorage.getItem("theme") || "light";
+      const fontSize = settings.fontSize || localStorage.getItem("fontSize") || "default";
+      const language = settings.language || localStorage.getItem("language") || "ko";
 
-        set({
-          theme,
-          fontSize,
-          language,
-          messages: getInitialMessages(language),
-        });
-      } catch (error) {
-        console.error("Error loading settings from Firestore:", error);
-        const theme = localStorage.getItem("theme") || "light";
-        const fontSize = localStorage.getItem("fontSize") || "default";
-        const language = localStorage.getItem("language") || "ko";
-        set({
-          theme,
-          fontSize,
-          language,
-          messages: getInitialMessages(language),
-        });
-      }
+      set({
+        theme,
+        fontSize,
+        language,
+        messages: getInitialMessages(language),
+      });
+    } catch (error) {
+      console.error("Error loading settings from Firestore:", error);
+      const theme = localStorage.getItem("theme") || "light";
+      const fontSize = localStorage.getItem("fontSize") || "default";
+      const language = localStorage.getItem("language") || "ko";
+
+      set({
+        theme,
+        fontSize,
+        language,
+        messages: getInitialMessages(language),
+      });
     }
   },
 
   clearUserAndData: () => {
-
     let theme = "light";
     let fontSize = "default";
     let language = "ko";
+
     if (typeof window !== "undefined") {
       theme = localStorage.getItem("theme") || "light";
       fontSize = localStorage.getItem("fontSize") || "default";
@@ -242,6 +197,7 @@ export const useStore: any = create((set: any, get: any) => ({
 
     set({
       user: null,
+      token: null,
       authChecked: true,
       theme,
       fontSize,
@@ -251,103 +207,28 @@ export const useStore: any = create((set: any, get: any) => ({
   },
 
   initAuth: () => {
-    // 구글 로그인 팝업 일 경우에도 처리할 수 있도록 추가
-    const urlParams = new URLSearchParams(window.location.search);
-    const testId = urlParams.get("id");
+    const mePath = BACKEND === "postgres" ? "/api/auth/me/postgres" : "/api/auth/me/firebase";
 
-    if (BACKEND === 'postgres') {
-      // 1) URL의 test id 우선 처리
-      const urlParams = new URLSearchParams(window.location.search);
-      const testId = urlParams.get("id");
-
-      // 2) 저장된 토큰 있으면 백엔드에서 me 조회
-      const savedToken = typeof window !== 'undefined' ? get().token : null;
-
-      // 토큰으로 유저 복원 시도
-      const restoreUserFromToken = async () => {
-        try {
-          const me = await postgresGetMeApi(savedToken ?? "");
-          set({ user: me, token: me.accessToken, authChecked: true });
-          await get().setUserAndLoadData(me);
-        } catch (e) {
-          console.error('initAuth: token invalid, clearing...', e);
-          localStorage.removeItem('access_token');
-          get().clearUserAndData();
+    fetch(mePath, {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("unauthorized");
         }
-      };
 
-      // testId가 있으면 기존처럼 테스트 로그인 시도
-      if (testId) {
-        console.log(`Attempting auto login with test ID: ${testId}`);
-        setTimeout(() => {
-          if (!get().user) {
-            get().loginWithTestId(testId);
-          } else {
-            console.log("User already logged in, skipping auto test login.");
-          }
-        }, 0);
-      } else {
-        // 일반 로그인 복구
-        restoreUserFromToken();
-      }
-    } else {
-      const savedLoginType = typeof window !== "undefined" ? localStorage.getItem("loginType") : null;
-      const savedToken = typeof window !== 'undefined' ? get().token : null;
-
-      const fallbackToFirebaseAuth = () => {
-        onAuthStateChanged(get().auth, async (fbUser) => {
-          if (get().user?.isTestUser) {
-            console.log("Already logged in as test user, ignoring Firebase Auth state change.");
-            set({ authChecked: true });
-            return;
-          }
-
-          if (fbUser) {
-            set({ authChecked: true, loginType: "google" });
-            await get().setUserAndLoadData(fbUser);
-          } else {
-            get().clearUserAndData();
-          }
+        const me = await response.json();
+        set({
+          user: me,
+          token: me.accessToken ?? null,
+          authChecked: true,
+          loginType: "sso",
         });
-      };
-
-      const restoreFromCookie = async () => {
-        try {
-          const me = await firebaseGetMeApi(savedToken ?? "");
-          set({
-            user: me,
-            authChecked: true,
-            loginType: savedLoginType === "test" ? "test" : (savedLoginType ?? "google"),
-            token: me.accessToken ?? null,
-          });
-          await get().setUserAndLoadData(me);
-          return true;
-        } catch {
-          return false;
-        }
-      };
-
-      // 1) testId 우선
-      if (testId) {
-        console.log(`Attempting auto login with test ID: ${testId}`);
-        setTimeout(() => {
-          if (!get().user) {
-            get().loginWithTestId(testId);
-          } else {
-            console.log("User already logged in, skipping auto test login.");
-          }
-        }, 0);
-        return;
-      }
-
-      // 2) Firebase 모드에서는 로그인 타입과 상관없이 쿠키 세션 복구 우선
-      restoreFromCookie().then((ok) => {
-        if (ok) return;
-        fallbackToFirebaseAuth();
+        await get().setUserAndLoadData(me);
+      })
+      .catch(() => {
+        get().clearUserAndData();
       });
-    }
   },
 }));
-
-// 초기화 로직은 스토어 생성 후 바로 호출
-// useStore.getState().initAuth();

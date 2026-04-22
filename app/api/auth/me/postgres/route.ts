@@ -1,41 +1,16 @@
-// app/api/auth/me/postgres/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from 'next/headers';
-import { verifyJwt } from "@/lib/utils/jwt";
-import { db } from "@/lib/postgresql";
+import { NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
-  try {
-    // 요청 쿠키 스토어 가져오기
-    const cookieStore = await cookies();
-    let auth = req.headers.get("Authorization") ?? "";
-    const token = cookieStore.get("access_token")?.value ?? auth.trim().replace("Bearer ", "");
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+import { getSessionToken, getUserServer } from "@/lib/session";
 
-    // const token = auth.replace("Bearer ", "");
-    const payload = verifyJwt(token);
-    const userId = payload?.uid ?? payload?.id ?? payload?.userId ?? payload?.sub;
-    if (!payload || !userId) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 402 });
-    }
+export async function GET() {
+  const user = await getUserServer();
 
-    const result = await db.query(
-      "SELECT id, email, name, avatar_url FROM users WHERE id = $1",
-      [userId]
-    );
-
-    if (result.rowCount === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      ...result.rows[0],
-      accessToken: token,
-    });
-  } catch (e) {
-    console.error("ME API error:", e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  return NextResponse.json({
+    ...user,
+    accessToken: await getSessionToken(),
+  });
 }

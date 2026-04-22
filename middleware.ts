@@ -1,24 +1,28 @@
-// middleware.ts
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getUserFromToken } from "./lib/session-token";
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND ?? 'firebase';
-
-export function middleware(req: NextRequest) {
-  // Firebase 모드면 서버에서 인증 체크하지 않고 그냥 통과
-  if (BACKEND === 'firebase') {
-    return NextResponse.next();
-  }
-
-  // Postgres + JWT 모드일 때만 쿠키로 체크
-  const token = req.cookies.get('access_token')?.value;
+export async function middleware(req: NextRequest) {
+  const token = req.cookies.get("access_token")?.value;
+  const pathname = req.nextUrl.pathname;
+  const includeAdminAccount = process.env.NEXT_PUBLIC_ADMIN_ACCOUNT;
 
   if (
     !token &&
-    (req.nextUrl.pathname.startsWith('/admin') ||
-      req.nextUrl.pathname.startsWith('/main'))
+    (req.nextUrl.pathname.startsWith("/admin") || req.nextUrl.pathname.startsWith("/main"))
   ) {
-    return NextResponse.redirect(new URL('/', req.url));
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("returnTo", `${req.nextUrl.pathname}${req.nextUrl.search}`);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (pathname.startsWith("/admin")) {
+    const user = await getUserFromToken(token);
+    const isAdmin = includeAdminAccount && includeAdminAccount.includes(user?.email ?? "");
+
+    if (!isAdmin) {
+      return NextResponse.redirect(new URL("/main", req.url));
+    }
   }
 
   return NextResponse.next();

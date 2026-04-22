@@ -1,37 +1,101 @@
-// lib/session.ts
 import "server-only";
+
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 import { cookies } from "next/headers";
-import { jwtVerify, type JWTPayload  } from "jose";
+
 import { User } from "@/types/user";
 
-// 백엔드와 같은 시크릿을 프론트(.env.local)에 넣되, NEXT_PUBLIC로 시작하지 마세요!
-const SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
-type JwtUserPayload = JWTPayload & Partial<User> & { id?: string; uid?: string; userId?: string };
+const SESSION_MAX_AGE_SEC = Number(
+  process.env.HAMS_SSO_SESSION_MAX_AGE_SEC ?? 60 * 60 * 24 * 7,
+);
 
-export async function getUserServer(): Promise<User | null> {
-  const store = await cookies();
-  const token = store.get("access_token")?.value;
-  if (!token) return null;
+type SessionUser = User & {
+  username?: string;
+  nickname?: string;
+  loginId?: string;
+};
+
+type SessionPayload = {
+  user: SessionUser;
+  issuedAt: number;
+  expiresAt: number;
+};
+
+function getSessionSecret() {
+  return (
+    process.env.HAMS_BAP_SESSION_SECRET ||
+    process.env.JWT_SECRET ||
+    "dev-hams-bap-session-secret"
+  );
+}
+
+function sign(value: string) {
+  return createHmac("sha256", getSessionSecret()).update(value).digest("base64url");
+}
+
+function encode(payload: SessionPayload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return `${body}.${sign(body)}`;
+}
+
+function decode(token: string) {
+  const [body, signature] = token.split(".");
+
+  if (!body || !signature) {
+    return null;
+  }
+
+  const expected = sign(body);
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+
+  if (signatureBuffer.length !== expectedBuffer.length) {
+    return null;
+  }
+
+  if (!timingSafeEqual(signatureBuffer, expectedBuffer)) {
+    return null;
+  }
 
   try {
-    const { payload } = await jwtVerify(token, SECRET, {
-      issuer: undefined, audience: undefined,
-    });
-    const p = payload as JwtUserPayload;
-    const id = p.id ?? p.uid ?? p.userId;
-    if (!id) return null;
-
-    const user: User = {
-      id: String(id),
-      sub: String(p.sub ?? id),
-      email: String(p.email ?? ""),
-      username: String(p.username ?? ""),
-      roles: Array.isArray(p.roles) ? p.roles : ["user"],
-      provider: p.provider ?? "google",
-    };
-    return user;
+    return JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
   } catch {
     return null;
   }
 }
 
+export async function createSessionToken(user: SessionUser) {
+  const issuedAt = Date.now();
+  const expiresAt = issuedAt + SESSION_MAX_AGE_SEC * 1000;
+
+  return encode({
+    user,
+    issuedAt,
+    expiresAt,
+  });
+}
+
+export function getUserFromToken(token?: string | null): SessionUser | null {
+  if (!token) {
+    return null;
+  }
+
+  const payload = decode(token);
+
+  if (!payload || payload.expiresAt < Date.now()) {
+    return null;
+  }
+
+  return payload.user;
+}
+
+export async function getSessionToken() {
+  const store = await cookies();
+  return store.get("access_token")?.value ?? null;
+}
+
+export async function getUserServer(): Promise<User | null> {
+  const token = await getSessionToken();
+  return getUserFromToken(token);
+}
