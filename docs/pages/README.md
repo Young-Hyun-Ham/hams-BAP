@@ -15,9 +15,7 @@
 - `/link` -> [content-header/link.md](./content-header/link.md)
 - `/sitemap` -> [content-header/sitemap.md](./content-header/sitemap.md)
 - `/faq` -> [content-header/faq.md](./content-header/faq.md)
-- `/chatSample` -> [content-header/chatSample.md](./content-header/chatSample.md)
 - `/chatbot` -> [content-header/chatbot.md](./content-header/chatbot.md)
-- `/chat` -> [content-header/chat.md](./content-header/chat.md)
 - `/ai-chat` -> [content-header/ai-chat.md](./content-header/ai-chat.md)
 - `/board/[slug]` -> [content-header/board-slug.md](./content-header/board-slug.md)
 

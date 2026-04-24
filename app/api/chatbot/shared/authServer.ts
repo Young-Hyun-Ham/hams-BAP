@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
-import { verifyToken } from "./auth";
+
 import { getUserServer } from "@/lib/session";
+
+import { verifyToken } from "./auth";
 
 export async function requireUserId(req: Request): Promise<string> {
   const userFromCookie = await getUserServer();
@@ -16,8 +18,11 @@ export async function requireUserId(req: Request): Promise<string> {
     token = store.get("access_token")?.value;
   }
 
-  const payload: any = token ? verifyToken(token) : null;
+  const payload = token ? verifyToken(token) : null;
   const userId = payload?.uid ?? payload?.id ?? payload?.userId ?? payload?.sub;
-  if (!userId) throw new Error("UNAUTHORIZED");
+  if (!userId) {
+    throw new Error("UNAUTHORIZED");
+  }
+
   return userId;
 }

@@ -100,7 +100,7 @@ export default function MainPage() {
               💬 <span>AI 채팅 시작</span>
             </Link>
             <Link
-              href="/chat"
+              href="/chatbot"
               className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 border border-gray-200 shadow-sm hover:bg-gray-50"
             >
               🕒 <span>최근 대화 보기</span>
@@ -190,7 +190,7 @@ export default function MainPage() {
                   최근 채팅
                 </h2>
                 <Link
-                  href="/chat"
+                  href="/chatbot"
                   className="text-[11px] text-gray-500 hover:text-gray-700"
                 >
                   전체 보기 &gt;
@@ -208,7 +208,7 @@ export default function MainPage() {
                     </p>
                   </div>
                   <Link
-                    href="/chat"
+                    href="/chatbot"
                     className="shrink-0 text-[11px] text-indigo-600 hover:underline"
                   >
                     이어서 보기
@@ -224,7 +224,7 @@ export default function MainPage() {
                     </p>
                   </div>
                   <Link
-                    href="/chat"
+                    href="/chatbot"
                     className="shrink-0 text-[11px] text-indigo-600 hover:underline"
                   >
                     기록 보기

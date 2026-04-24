@@ -1,89 +1,132 @@
-// app/api/admin/firebase/user-info/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebaseAdmin";
-import { toDateTimeString } from "@/lib/utils/utils";
 import bcrypt from "bcryptjs";
 import { FieldValue } from "firebase-admin/firestore";
+import { NextRequest, NextResponse } from "next/server";
+
+import { adminDb } from "@/lib/firebaseAdmin";
+import {
+  getDefaultChatModel,
+  normalizeAiChatType,
+  normalizeMemberProfile,
+} from "@/lib/member-profile";
 
 export type Role = "guest" | "user" | "admin" | string;
+
 export interface UserUpsertPayload {
-  id?: string;            // uuid
-  sub?: string;           // 없으면 서버에서 gen_random_uuid()::text 로 생성
+  id?: string;
+  sub?: string;
   email?: string | null;
   name?: string | null;
+  nickname?: string | null;
+  loginId?: string | null;
+  phoneNumber?: string | null;
   avatarUrl?: string | null;
-  roles?: Role[];         // 없으면 ["guest"]
+  roles?: Role[];
   provider?: string | null;
-  lastLoginAt?: string;      // 마지막접속일시
-  password?: string;        
+  providerSubject?: string | null;
+  aiEnabled?: boolean;
+  aiChatType?: "gpt" | "gemini" | "claude";
+  apiKey?: string | null;
+  chatModel?: string | null;
+  termsAcceptedAt?: string | null;
+  termsVersion?: string | null;
+  lastLoginAt?: string;
+  password?: string;
 }
 
 export interface AdminUser {
   id: string;
   sub: string;
   email: string | null;
+  emailLower?: string | null;
   name: string | null;
+  nickname?: string | null;
+  loginId?: string | null;
+  loginIdLower?: string | null;
+  phoneNumber?: string | null;
   avatarUrl: string | null;
-  createdAt: string;      // ISO string
-  lastLoginAt: string | null;      // 마지막접속일시
-  roles: Role[];          // jsonb → string[]
+  createdAt: string;
+  lastLoginAt: string | null;
+  roles: Role[];
   provider: string | null;
+  providerSubject?: string | null;
+  aiEnabled?: boolean;
+  aiChatType?: "gpt" | "gemini" | "claude";
+  apiKey?: string | null;
+  chatModel?: string | null;
+  termsAcceptedAt?: string | null;
+  termsVersion?: string | null;
 }
 
 const COLLECTION = "users";
-
-// bcrypt 라운드 수 (기본 12)
 const ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? "12", 10);
-// 임의 비밀번호 생성 (OAuth 최초 가입 등에서 사용)
+
 function generateRandomPassword(length = 16) {
-  return Array.from({ length }, () =>
-    Math.floor(Math.random() * 36).toString(36)
-  ).join("");
+  return Array.from({ length }, () => Math.floor(Math.random() * 36).toString(36)).join("");
+}
+
+function normalizeText(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const keyword = searchParams.get("keyword") ?? "";
+    const keyword = (searchParams.get("keyword") ?? "").trim().toLowerCase();
 
-    const snap = await adminDb
-      .collection(COLLECTION)
-      .orderBy("createdAt", "desc")
-      .get();
+    const snap = await adminDb.collection(COLLECTION).orderBy("createdAt", "desc").get();
 
-    let items = snap.docs.map((d) => {
-      const data = d.data() as any;
+    let items: AdminUser[] = snap.docs.map((doc) => {
+      const normalized = normalizeMemberProfile(doc.id, doc.data() as Record<string, unknown>);
 
       return {
-        id: d.id,
-        sub: data.sub ?? d.id,
-        email: data.email ?? null,
-        name: data.name ?? null,
-        avatarUrl: data.avatar_url ?? null,
-        roles: data.roles ?? ["guest"], // 기본값
-        provider: data.provider ?? null,
-        createdAt: toDateTimeString(data.createdAt) ?? "",
-        lastLoginAt: toDateTimeString(data.lastLoginAt),
+        id: normalized.id,
+        sub: normalized.sub,
+        email: normalized.email,
+        emailLower: normalized.emailLower,
+        name: normalized.name,
+        nickname: normalized.nickname,
+        loginId: normalized.loginId,
+        loginIdLower: normalized.loginIdLower,
+        phoneNumber: normalized.phoneNumber,
+        avatarUrl: normalized.avatarUrl,
+        createdAt: normalized.createdAt,
+        lastLoginAt: normalized.lastLoginAt,
+        roles: normalized.roles,
+        provider: normalized.provider,
+        providerSubject: normalized.providerSubject,
+        aiEnabled: normalized.aiEnabled,
+        aiChatType: normalized.aiChatType,
+        apiKey: normalized.apiKey,
+        chatModel: normalized.chatModel,
+        termsAcceptedAt: normalized.termsAcceptedAt,
+        termsVersion: normalized.termsVersion,
       };
     });
 
-    // 🔍 검색 필터
-    if (keyword && keyword.trim()) {
-      const k = keyword.toLowerCase();
-      items = items.filter(
-        (u) =>
-          (u.name ?? "").toLowerCase().includes(k) ||
-          (u.email ?? "").toLowerCase().includes(k) ||
-          (u.sub ?? "").toLowerCase().includes(k)
+    if (keyword) {
+      items = items.filter((user) =>
+        [
+          user.name ?? "",
+          user.nickname ?? "",
+          user.email ?? "",
+          user.loginId ?? "",
+          user.sub ?? "",
+          user.phoneNumber ?? "",
+        ].some((value) => value.toLowerCase().includes(keyword)),
       );
     }
 
     return NextResponse.json({ items });
-  } catch (e) {
-    console.error("admin firebase users list error:", e);
+  } catch (error) {
+    console.error("admin firebase users list error:", error);
     return NextResponse.json(
       { error: "사용자 목록 조회에 실패했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -91,49 +134,48 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const payload = (await req.json()) as UserUpsertPayload;
+    const docId = payload.sub?.trim() || payload.id?.trim() || "";
 
-    const {
-      id,
-      sub,
-      email,
-      name,
-      avatarUrl,
-      roles,
-      provider,
-      lastLoginAt,
-      password,
-    } = payload;
-
-    // Firestore 문서 ID = sub 기준 (없으면 id)
-    const docId = sub ?? id ?? "";
     if (!docId) {
-      return NextResponse.json(
-        { error: "sub 또는 id가 필요합니다." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "sub 또는 id가 필요합니다." }, { status: 400 });
     }
 
     const ref = adminDb.collection(COLLECTION).doc(docId);
     const snap = await ref.get();
     const isNew = !snap.exists;
 
-    // 비밀번호 해시
     let passwordHash: string | undefined;
-
-    if (password && password.trim().length > 0) {
-      passwordHash = await bcrypt.hash(password.trim(), ROUNDS);
+    if (payload.password && payload.password.trim().length > 0) {
+      passwordHash = await bcrypt.hash(payload.password.trim(), ROUNDS);
     } else if (isNew) {
-      const randomPassword = generateRandomPassword();
-      passwordHash = await bcrypt.hash(randomPassword, ROUNDS);
+      passwordHash = await bcrypt.hash(generateRandomPassword(), ROUNDS);
     }
 
-    const saveData: any = {
+    const email = normalizeText(payload.email);
+    const loginId = normalizeText(payload.loginId);
+    const nickname = normalizeText(payload.nickname);
+    const aiChatType = normalizeAiChatType(payload.aiChatType);
+    const chatModel = normalizeText(payload.chatModel) ?? getDefaultChatModel(aiChatType);
+
+    const saveData: Record<string, unknown> = {
       sub: docId,
-      email: email ?? null,
-      name: name ?? null,
-      avatar_url: avatarUrl ?? null,
-      roles: roles ?? ["guest"],
-      provider: provider ?? null,
+      email,
+      emailLower: email ? email.toLowerCase() : null,
+      name: normalizeText(payload.name) ?? nickname,
+      nickname,
+      loginId,
+      loginIdLower: loginId ? loginId.toLowerCase() : null,
+      phoneNumber: normalizeText(payload.phoneNumber),
+      avatar_url: normalizeText(payload.avatarUrl),
+      roles: payload.roles?.length ? payload.roles : ["guest"],
+      provider: normalizeText(payload.provider),
+      providerSubject: normalizeText(payload.providerSubject),
+      aiEnabled: typeof payload.aiEnabled === "boolean" ? payload.aiEnabled : true,
+      aiChatType,
+      apiKey: normalizeText(payload.apiKey) ?? "",
+      chatModel,
+      termsAcceptedAt: normalizeText(payload.termsAcceptedAt),
+      termsVersion: normalizeText(payload.termsVersion),
       updatedAt: FieldValue.serverTimestamp(),
     };
 
@@ -141,31 +183,47 @@ export async function POST(req: NextRequest) {
       saveData.createdAt = FieldValue.serverTimestamp();
     }
 
-    if (passwordHash) {
-      saveData.password = passwordHash;
+    if (payload.lastLoginAt) {
+      saveData.lastLoginAt = payload.lastLoginAt;
     }
 
-    // lastLoginAt 은 여기선 직접 세팅하지 않고, 로그인 로직에서 관리해도 됨
+    if (passwordHash) {
+      saveData.password = passwordHash;
+      saveData.passwordHash = passwordHash;
+    }
+
     await ref.set(saveData, { merge: true });
 
     const result: AdminUser = {
       id: docId,
       sub: docId,
-      email: email ?? null,
-      name: name ?? null,
-      avatarUrl: avatarUrl ?? null,
-      roles: roles ?? ["guest"],
-      provider: provider ?? null,
+      email,
+      emailLower: email ? email.toLowerCase() : null,
+      name: normalizeText(payload.name) ?? nickname,
+      nickname,
+      loginId,
+      loginIdLower: loginId ? loginId.toLowerCase() : null,
+      phoneNumber: normalizeText(payload.phoneNumber),
+      avatarUrl: normalizeText(payload.avatarUrl),
       createdAt: "",
-      lastLoginAt: lastLoginAt ?? "",
+      lastLoginAt: payload.lastLoginAt ?? "",
+      roles: payload.roles?.length ? payload.roles : ["guest"],
+      provider: normalizeText(payload.provider),
+      providerSubject: normalizeText(payload.providerSubject),
+      aiEnabled: typeof payload.aiEnabled === "boolean" ? payload.aiEnabled : true,
+      aiChatType,
+      apiKey: normalizeText(payload.apiKey) ?? "",
+      chatModel,
+      termsAcceptedAt: normalizeText(payload.termsAcceptedAt),
+      termsVersion: normalizeText(payload.termsVersion),
     };
 
     return NextResponse.json(result);
-  } catch (e) {
-    console.error("admin firebase users upsert error:", e);
+  } catch (error) {
+    console.error("admin firebase users upsert error:", error);
     return NextResponse.json(
       { error: "사용자 저장에 실패했습니다." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

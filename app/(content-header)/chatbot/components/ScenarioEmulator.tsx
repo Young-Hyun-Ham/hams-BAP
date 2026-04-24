@@ -448,10 +448,10 @@ export default function ScenarioEmulator({
         const prompt = resolveTemplate(rawPrompt, slotSnapshot);
         const outputVar: string = node.data?.outputVar || "llm_output";
 
-        const res = await fetch("/api/chat/gemini", {
+        const res = await fetch("/api/chatbot/llm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, systemPrompt }),
+          body: JSON.stringify({ prompt, systemPrompt, model: user?.chatModel ?? null }),
         });
 
         if (!res.ok || !res.body) {

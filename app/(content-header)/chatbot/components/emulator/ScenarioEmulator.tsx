@@ -175,8 +175,14 @@ export default function ScenarioEmulator({
 
   const runLlmNode = useCallback(
     async (node: AnyNode, slotSnapshot: Record<string, any>) =>
-      runLlmNodeImpl(node, slotSnapshot, { systemPrompt, pushBotStep, setSteps, setSlotValues }),
-    [systemPrompt, pushBotStep],
+      runLlmNodeImpl(node, slotSnapshot, {
+        systemPrompt,
+        model: user?.chatModel ?? null,
+        pushBotStep,
+        setSteps,
+        setSlotValues,
+      }),
+    [systemPrompt, user?.chatModel, pushBotStep],
   );
 
   // =============================================================================

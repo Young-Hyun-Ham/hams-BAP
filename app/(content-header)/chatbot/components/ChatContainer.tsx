@@ -61,8 +61,7 @@ export default function ChatContainer() {
     setSystemPrompt,
     syncReady,
   } = useChatbotStore();
-
-  const [isSending, setIsSending] = useState(false);
+  // const [isSending, setIsSending] = useState(false);  
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(true);
 
@@ -352,10 +351,12 @@ export default function ChatContainer() {
   };
 
   useEffect(() => {
-    if (!activeSessionId || activeSessionId === "" || activeSessionId == null) {
-      setIsSending(true);
-    } else {
-      setIsSending(false);
+    // if (!activeSessionId || activeSessionId === "" || activeSessionId == null) {
+    //   setIsSending(true);
+    // } else {
+    //   setIsSending(false);
+    // }
+    if (activeSessionId) {
       // 시나리오 에뮬 패널 닫기
       setScenarioOpen(false);
     }
@@ -459,6 +460,7 @@ export default function ChatContainer() {
 
   const { send } = useChatOrchestrator({
     systemPrompt,
+    model: user?.chatModel ?? null,
     textareaFocus,
 
     ensureSession,
@@ -754,9 +756,14 @@ export default function ChatContainer() {
             });
           }}
         />
-
+        {/* isSending 상태에 따른 입력창 비활성화 (지식관리 + Gemini 스트림 중복 방지)
         <ChatInput
           disabled={isSending}
+          onSend={send}
+          textareaRef={textareaRef}
+        />
+        */}
+        <ChatInput
           onSend={send}
           textareaRef={textareaRef}
         />

@@ -1,17 +1,14 @@
-// app/(siderbar-header)/admin/user-info/page.tsx
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  ChangeEvent,
-  FormEvent,
-} from "react";
-import useUserStore from "./store";
-import UserEditModal from "./components/modal/UserEditModal";
-import type { AdminUser } from "./types";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
+
+import UserEditModal, { type UserFormState } from "./components/modal/UserEditModal";
+import useUserStore from "./store";
+import type { AdminUser, AiChatType } from "./types";
+import { decryptApiKey, encryptApiKey } from "@/lib/api-key";
+
+const PAGE_SIZE = 10;
 
 const providerLabel: Record<string, string> = {
   google: "Google",
@@ -19,160 +16,168 @@ const providerLabel: Record<string, string> = {
   custom: "Custom",
 };
 
-const PAGE_SIZE = 10;
-
-type UserFormState = {
-  id?: string;
-  sub: string;
-  name: string;
-  email: string;
-  provider?: string | null;
-  rolesText: string;
-  password: string;
-  passwordConfirm: string;
+const defaultModelByProvider: Record<AiChatType, string> = {
+  gpt: "gpt-4",
+  gemini: "gemini-2.0-flash",
+  claude: "claude-3-5-sonnet-latest",
 };
 
+function createEmptyForm(): UserFormState {
+  return {
+    sub: "",
+    name: "",
+    nickname: "",
+    loginId: "",
+    email: "",
+    phoneNumber: "",
+    provider: "google",
+    providerSubject: "",
+    rolesText: "user",
+    aiEnabled: true,
+    aiChatType: "gpt",
+    apiKey: "",
+    chatModel: defaultModelByProvider.gpt,
+    termsAcceptedAt: "",
+    termsVersion: "",
+    password: "",
+    passwordConfirm: "",
+  };
+}
+
 export default function AdminUserInfoPage() {
-  const fetchUserList = useUserStore((s) => s.fetchUserList);
-  const upsertUser = useUserStore((s) => s.upsertUser);
-  const deleteUser = useUserStore((s) => s.deleteUser);
+  const fetchUserList = useUserStore((state) => state.fetchUserList);
+  const upsertUser = useUserStore((state) => state.upsertUser);
+  const deleteUser = useUserStore((state) => state.deleteUser);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [searchText, setSearchText] = useState("");
   const [providerFilter, setProviderFilter] = useState<string>("all");
-
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRowSub, setSelectedRowSub] = useState<string | null>(null);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [form, setForm] = useState<UserFormState>(createEmptyForm);
 
-  const [form, setForm] = useState<UserFormState>({
-    sub: "",
-    name: "",
-    email: "",
-    provider: "google",
-    rolesText: "user",
-    password: "",
-    passwordConfirm: "",
-  });
-
-  /* ========== 데이터 로드 ========== */
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchUserList({});
-      setUsers(data);
+      setUsers(await fetchUserList({}));
       setCurrentPage(1);
-    } catch (e: any) {
-      console.error(e);
-      setError(e?.message ?? "사용자 조회 실패");
+    } catch (loadError) {
+      console.error(loadError);
+      setError(loadError instanceof Error ? loadError.message : "사용자 조회에 실패했습니다.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchUserList]);
 
   useEffect(() => {
     loadUsers();
-  }, [fetchUserList]);
+  }, [loadUsers]);
 
-  /* ========== 필터링 ========== */
   const filtered = useMemo(() => {
-    return users.filter((u) => {
-      if (providerFilter !== "all" && (u.provider ?? "custom") !== providerFilter) {
+    return users.filter((user) => {
+      if (providerFilter !== "all" && (user.provider ?? "") !== providerFilter) {
         return false;
       }
-      if (!searchText.trim()) return true;
 
-      const k = searchText.toLowerCase();
-      return (
-        (u.name ?? "").toLowerCase().includes(k) ||
-        (u.email ?? "").toLowerCase().includes(k) ||
-        (u.sub ?? "").toLowerCase().includes(k)
-      );
+      if (!searchText.trim()) {
+        return true;
+      }
+
+      const keyword = searchText.toLowerCase();
+      return [
+        user.name ?? "",
+        user.nickname ?? "",
+        user.email ?? "",
+        user.loginId ?? "",
+        user.sub ?? "",
+        user.phoneNumber ?? "",
+      ].some((value) => value.toLowerCase().includes(keyword));
     });
-  }, [users, providerFilter, searchText]);
+  }, [providerFilter, searchText, users]);
 
-  /* ========== 페이징 ========== */
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const pageEnd = pageStart + PAGE_SIZE;
-  const pagedUsers = filtered.slice(pageStart, pageEnd);
+  const pagedUsers = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
-  const goToPage = (page: number) => {
-    const newPage = Math.min(Math.max(1, page), totalPages);
-    setCurrentPage(newPage);
-  };
-
-  /* ========== 모달 관련 ========== */
-  const handleOpenCreate = () => {
+  const openCreateModal = () => {
     setIsEditing(false);
     setSelectedUser(null);
-    setForm({
-      id: undefined,
-      sub: "",
-      name: "",
-      email: "",
-      provider: "google",
-      rolesText: "user",
-      password: "",
-      passwordConfirm: "",
-    });
+    setForm(createEmptyForm());
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (user: AdminUser) => {
+  const openEditModal = (user: AdminUser) => {
+    const aiChatType = user.aiChatType ?? "gpt";
     setIsEditing(true);
     setSelectedUser(user);
     setForm({
       id: user.id,
       sub: user.sub,
       name: user.name ?? "",
+      nickname: user.nickname ?? "",
+      loginId: user.loginId ?? "",
       email: user.email ?? "",
+      phoneNumber: user.phoneNumber ?? "",
       provider: user.provider ?? "google",
+      providerSubject: user.providerSubject ?? "",
       rolesText: (user.roles ?? []).join(","),
+      aiEnabled: user.aiEnabled ?? true,
+      aiChatType,
+      apiKey: decryptApiKey(user.apiKey) ?? "",
+      chatModel: user.chatModel ?? defaultModelByProvider[aiChatType],
+      termsAcceptedAt: user.termsAcceptedAt ?? "",
+      termsVersion: user.termsVersion ?? "",
       password: "",
       passwordConfirm: "",
     });
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const closeModal = () => {
     setIsModalOpen(false);
     setIsEditing(false);
     setSelectedUser(null);
   };
 
-  const handleFormChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+  const handleFormChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const target = event.target;
+    const { name } = target;
+    const value = target instanceof HTMLInputElement && target.type === "checkbox" ? target.checked : target.value;
+
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "aiChatType") {
+        const aiChatType = value as AiChatType;
+        if (!prev.chatModel || prev.chatModel === defaultModelByProvider[prev.aiChatType]) {
+          next.chatModel = defaultModelByProvider[aiChatType];
+        }
+      }
+      return next;
+    });
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
 
     if (!form.sub.trim()) {
       alert("SUB(uid)는 필수입니다.");
       return;
     }
 
-    // 비밀번호 검증 로직
-    const hasPasswordInput =
-      form.password.trim().length > 0 || form.passwordConfirm.trim().length > 0;
-
+    const hasPasswordInput = form.password.trim().length > 0 || form.passwordConfirm.trim().length > 0;
     if (hasPasswordInput) {
       if (form.password.trim().length < 8) {
         alert("비밀번호는 8자 이상이어야 합니다.");
         return;
       }
+
       if (form.password !== form.passwordConfirm) {
         alert("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
         return;
@@ -183,297 +188,226 @@ export default function AdminUserInfoPage() {
       setLoading(true);
       setError(null);
 
-      const roles = form.rolesText
-        .split(",")
-        .map((r) => r.trim())
-        .filter(Boolean);
-
-      const passwordToSend = hasPasswordInput ? form.password.trim() : undefined;
-
       await upsertUser({
         id: form.id,
         sub: form.sub.trim(),
         name: form.name.trim() || null,
+        nickname: form.nickname.trim() || null,
+        loginId: form.loginId.trim() || null,
         email: form.email.trim() || null,
+        phoneNumber: form.phoneNumber.trim() || null,
         avatarUrl: null,
-        roles,
-        provider: form.provider ?? null,
-        password: passwordToSend,
+        roles: form.rolesText.split(",").map((role) => role.trim()).filter(Boolean),
+        provider: form.provider || null,
+        providerSubject: form.providerSubject.trim() || null,
+        aiEnabled: form.aiEnabled,
+        aiChatType: form.aiChatType,
+        apiKey: encryptApiKey(form.apiKey.trim()) || null,
+        chatModel: form.chatModel.trim() || null,
+        termsAcceptedAt: form.termsAcceptedAt.trim() || null,
+        termsVersion: form.termsVersion.trim() || null,
+        password: hasPasswordInput ? form.password.trim() : undefined,
       });
 
-      alert("저장되었습니다.");
-      handleCloseModal();
+      closeModal();
       await loadUsers();
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message ?? "저장 실패");
+    } catch (submitError) {
+      console.error(submitError);
+      setError(submitError instanceof Error ? submitError.message : "사용자 저장에 실패했습니다.");
       alert("저장 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ========== 삭제 ========== */
-  const handleDelete = async (u: AdminUser) => {
-    if (!confirm(`"${u.name ?? u.sub}" 사용자를 삭제할까요?`)) return;
+  const handleDelete = async (user: AdminUser) => {
+    if (!confirm(`"${user.name ?? user.sub}" 사용자를 삭제할까요?`)) {
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
-      await deleteUser(u.sub);
-      alert("삭제되었습니다.");
+      await deleteUser(user.sub);
       await loadUsers();
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message ?? "삭제 실패");
+    } catch (deleteError) {
+      console.error(deleteError);
+      setError(deleteError instanceof Error ? deleteError.message : "사용자 삭제에 실패했습니다.");
       alert("삭제 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ========== 렌더링 ========== */
-  // const firebaseCount = filtered.filter((u) => u.backend === "firebase").length;
-  // const postgresCount = filtered.filter((u) => u.backend === "postgres").length;
-
   return (
-    <div className="p-6 bg-gray-50 h-full font-sans">
-      {/* Breadcrumb */}
-      <div className="text-sm text-gray-500 mb-4">
+    <div className="h-full bg-gray-50 p-6 font-sans">
+      <div className="mb-4 text-sm text-gray-500">
         Admin
         <span className="mx-1"> / </span>
-        <span className="text-gray-800 font-semibold">사용자 정보</span>
+        <span className="font-semibold text-gray-800">사용자 정보</span>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow-sm space-y-4">
-        {/* 상단 타이틀 + 등록 버튼 */}
+      <div className="space-y-4 rounded-lg bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-800">사용자 목록</h1>
           <button
+            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            onClick={openCreateModal}
             type="button"
-            onClick={handleOpenCreate}
-            className="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
           >
-            + 새 사용자 등록
+            + 사용자 등록
           </button>
         </div>
 
-        {/* 필터 & 검색 영역 (메뉴 화면 스타일 맞춤) */}
-        <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
-          {/* Provider Filter */}
-          <div className="flex flex-col w-full md:w-40">
-            <label className="text-xs font-medium text-gray-600 mb-1">
-              Provider
-            </label>
+        <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end">
+          <div className="flex w-full flex-col md:w-40">
+            <label className="mb-1 text-xs font-medium text-gray-600">Provider</label>
             <div className="relative">
               <select
-                className="appearance-none border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm w-full bg-white"
+                className="w-full appearance-none rounded-md border border-gray-300 bg-white px-3 py-2 pr-8 text-sm"
+                onChange={(event) => setProviderFilter(event.target.value)}
                 value={providerFilter}
-                onChange={(e) => setProviderFilter(e.target.value)}
               >
                 <option value="all">All</option>
                 <option value="google">Google</option>
-                <option value="firebase">Firebase</option>
-                <option value="custom">Custom</option>
+                <option value="naver">Naver</option>
+                <option value="kakao">Kakao</option>
+                <option value="password">password</option>
               </select>
-              {/* 커스텀 화살표: 텍스트 왼쪽 padding과 동일한 간격(12px) */}
               <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                 size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
               />
             </div>
           </div>
 
-          {/* Search 입력 */}
           <div className="flex flex-1 flex-col">
-            <label className="text-xs font-medium text-gray-600 mb-1">
-              Search (이름 / 이메일 / SUB)
+            <label className="mb-1 text-xs font-medium text-gray-600">
+              Search (name / email / loginId / SUB)
             </label>
-            <div className="flex">
-              <input
-                type="text"
-                className="border border-gray-300 rounded-l-md px-3 py-2 text-sm w-full"
-                placeholder="검색어를 입력하세요"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.preventDefault();
-                }}
-              />
-              <button
-                type="button"
-                className="bg-blue-600 text-white px-6 py-2 rounded-r-md font-semibold text-sm hover:bg-blue-700 flex items-center gap-1"
-              >
-                SEARCH
-              </button>
-            </div>
+            <input
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="검색어를 입력하세요."
+              value={searchText}
+            />
           </div>
         </div>
 
-        {/* 데이터 요약 */}
-        <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center justify-between text-xs text-gray-500">
           <div>
             총 <span className="font-semibold text-gray-800">{filtered.length}</span> 명
           </div>
-          <div className="flex gap-3">
-            <span>{filtered.length} 명</span>
-          </div>
         </div>
 
-        {/* 데이터 테이블 (메뉴 스타일 동일) */}
-        <div className="overflow-x-auto border border-gray-200 rounded-md">
-          <table className="min-w-full divide-y divide-gray-200 text-sm table-fixed">
+        <div className="overflow-x-auto rounded-md border border-gray-200">
+          <table className="min-w-full table-fixed divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-10">
-                  #
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-40">
-                  이름
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-56">
-                  이메일
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-32">
-                  Provider
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-40">
-                  Roles
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-48">
-                  마지막 로그인
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  SUB
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-24">
-                  {/* actions */}
-                </th>
+                <th className="w-10 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">#</th>
+                <th className="w-40 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Name</th>
+                <th className="w-48 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Login</th>
+                <th className="w-56 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Email</th>
+                <th className="w-32 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Provider</th>
+                <th className="w-44 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">AI</th>
+                <th className="w-48 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Last Login</th>
+                {/* <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">SUB</th> */}
+                <th className="w-24 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500" />
               </tr>
             </thead>
-
-            <tbody className="bg-white divide-y divide-gray-200">
-              {pagedUsers.map((user, idx) => (
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {pagedUsers.map((user, index) => (
                 <tr
+                  className="relative cursor-pointer hover:bg-gray-50"
                   key={user.sub}
-                  className="hover:bg-gray-50 relative cursor-pointer"
-                  onClick={() =>
-                    setSelectedRowSub((prev) => (prev === user.sub ? null : user.sub))
-                  }
+                  onClick={() => setSelectedRowSub((prev) => (prev === user.sub ? null : user.sub))}
                 >
-                  <td className="px-4 py-2 whitespace-nowrap text-gray-800">
-                    {pageStart + idx + 1}
+                  <td className="whitespace-nowrap px-4 py-2 text-gray-800">{pageStart + index + 1}</td>
+                  <td className="px-4 py-2 text-gray-800">
+                    <div>{user.name ?? "-"}</div>
+                    <div className="text-xs text-gray-400">{user.nickname ?? "-"}</div>
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-gray-800">
-                    {user.name ?? "-"}
+                  <td className="px-4 py-2 text-gray-800">
+                    <div>{user.loginId ?? "-"}</div>
+                    <div className="text-xs text-gray-400">{user.phoneNumber ?? "-"}</div>
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-gray-800">
-                    {user.email ?? "-"}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-gray-800">
+                  <td className="px-4 py-2 text-gray-800">{user.email ?? "-"}</td>
+                  <td className="px-4 py-2 text-gray-800">
                     <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
                       {providerLabel[user.provider ?? "custom"] ?? user.provider}
                     </span>
                   </td>
-
-                  <td className="px-4 py-2 whitespace-nowrap text-gray-800">
-                    {user.roles?.length ? (
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.map((r) => (
-                          <span
-                            key={r}
-                            className="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-600"
-                          >
-                            {r}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
+                  <td className="px-4 py-2 text-gray-800">
+                    <div>{user.aiEnabled === false ? "disabled" : user.aiChatType ?? "-"}</div>
+                    {/* <div className="text-xs text-gray-400">{user.chatModel ?? "-"}</div> */}
                   </td>
-
-                  <td className="px-4 py-2 whitespace-nowrap text-gray-800">
-                    {user.lastLoginAt?.substring(0, 19) ?? "-"}
-                  </td>
-
-                  <td className="px-4 py-2 text-gray-400">
+                  <td className="whitespace-nowrap px-4 py-2 text-gray-800">{user.lastLoginAt?.substring(0, 19) ?? "-"}</td>
+                  {/* <td className="px-4 py-2 text-gray-400">
                     <span className="block w-full truncate" title={user.sub}>
                       {user.sub}
                     </span>
-                  </td>
+                  </td> */}
+                  <td className="px-4 py-2 text-xs" />
 
-                  {/* 기본 액션 셀 (비워둠) */}
-                  <td className="px-4 py-2 whitespace-nowrap text-xs" />
-
-                  {/* 선택된 행일 때 오버레이 + 버튼 (메뉴 화면과 동일 패턴) */}
-                  {selectedRowSub === user.sub && (
+                  {selectedRowSub === user.sub ? (
                     <td className="absolute inset-0 bg-white/70">
-                      <div className="w-full h-full flex items-center justify-end gap-2 pr-4">
+                      <div className="flex h-full w-full items-center justify-end gap-2 pr-4">
                         <button
-                          type="button"
-                          className="px-3 py-1 rounded border border-gray-300 text-gray-700 bg-white/90 hover:bg-gray-100 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEdit(user);
+                          className="rounded border border-gray-300 bg-white/90 px-3 py-1 text-xs text-gray-700 hover:bg-gray-100"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEditModal(user);
                           }}
+                          type="button"
                         >
                           Edit
                         </button>
                         <button
-                          type="button"
-                          className="px-3 py-1 rounded border border-red-300 text-red-600 bg-white/90 hover:bg-red-50 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          className="rounded border border-red-300 bg-white/90 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
+                          onClick={(event) => {
+                            event.stopPropagation();
                             handleDelete(user);
                           }}
+                          type="button"
                         >
                           Delete
                         </button>
                       </div>
                     </td>
-                  )}
+                  ) : null}
                 </tr>
               ))}
 
-              {filtered.length === 0 && !loading && (
+              {!filtered.length && !loading ? (
                 <tr>
-                  <td
-                    colSpan={9}
-                    className="px-4 py-6 text-center text-gray-400 text-sm"
-                  >
+                  <td className="px-4 py-6 text-center text-sm text-gray-400" colSpan={9}>
                     사용자가 없습니다.
                   </td>
                 </tr>
-              )}
+              ) : null}
             </tbody>
           </table>
         </div>
 
-        {/* 페이지네이션 바 (메뉴와 동일 스타일) */}
-        {filtered.length > 0 && (
-          <div className="flex items-center justify-between mt-3 text-xs text-gray-600">
+        {filtered.length > 0 ? (
+          <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
             <div>
-              총 {totalItems}건 중{" "}
-              {totalItems === 0
-                ? 0
-                : `${pageStart + 1} - ${Math.min(pageEnd, totalItems)}건`}
-              표시
+              총 {totalItems}건 중 {pageStart + 1} - {Math.min(pageStart + PAGE_SIZE, totalItems)}건 표시
             </div>
             <div className="flex items-center gap-1">
               <button
-                type="button"
-                className="px-2 py-1 border border-gray-300 rounded disabled:opacity-40"
-                onClick={() => goToPage(1)}
+                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-40"
                 disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+                type="button"
               >
                 처음
               </button>
               <button
-                type="button"
-                className="px-2 py-1 border border-gray-300 rounded disabled:opacity-40"
-                onClick={() => goToPage(currentPage - 1)}
+                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-40"
                 disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                type="button"
               >
                 이전
               </button>
@@ -481,45 +415,38 @@ export default function AdminUserInfoPage() {
                 {currentPage} / {totalPages}
               </span>
               <button
-                type="button"
-                className="px-2 py-1 border border-gray-300 rounded disabled:opacity-40"
-                onClick={() => goToPage(currentPage + 1)}
+                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-40"
                 disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                type="button"
               >
                 다음
               </button>
               <button
-                type="button"
-                className="px-2 py-1 border border-gray-300 rounded disabled:opacity-40"
-                onClick={() => goToPage(totalPages)}
+                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-40"
                 disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                type="button"
               >
                 마지막
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {error && (
-          <p className="text-xs text-red-500 mt-2">
-            {error}
-          </p>
-        )}
-        {loading && (
-          <div className="text-xs text-gray-500 mt-1">Loading...</div>
-        )}
+        {error ? <p className="mt-2 text-xs text-red-500">{error}</p> : null}
+        {loading ? <div className="mt-1 text-xs text-gray-500">Loading...</div> : null}
       </div>
 
-      {/* 모달 */}
       <UserEditModal
-        isOpen={isModalOpen}
-        isEditing={isEditing}
-        loading={loading}
         form={form}
-        userInfo={selectedUser}
+        isEditing={isEditing}
+        isOpen={isModalOpen}
+        loading={loading}
         onChange={handleFormChange}
+        onClose={closeModal}
         onSubmit={handleSubmit}
-        onClose={handleCloseModal}
+        userInfo={selectedUser}
       />
     </div>
   );

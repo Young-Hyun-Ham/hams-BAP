@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { setAccessTokenCookie } from "@/lib/cookies";
 import { createSessionToken } from "@/lib/session";
+import { upsertSsoMemberProfile } from "@/lib/member-profile";
 import { exchangeSsoCode, getAppBaseUrl } from "@/lib/sso";
 
 const SSO_STATE_COOKIE = "hams_bap_sso_state";
@@ -26,15 +27,27 @@ export async function GET(request: NextRequest) {
 
   try {
     const ssoUser = await exchangeSsoCode(code);
+    await upsertSsoMemberProfile(ssoUser);
+
     const sessionToken = await createSessionToken({
       id: ssoUser.id,
       sub: ssoUser.id,
       email: ssoUser.email,
       username: ssoUser.nickname || ssoUser.loginId || ssoUser.email,
+      name: ssoUser.nickname || ssoUser.loginId || ssoUser.email,
       nickname: ssoUser.nickname || ssoUser.loginId || ssoUser.email,
       loginId: ssoUser.loginId || "",
+      loginIdLower: ssoUser.loginIdLower || ssoUser.loginId?.toLowerCase() || "",
+      emailLower: ssoUser.emailLower || ssoUser.email?.toLowerCase() || "",
       roles: ["user"],
       provider: ssoUser.provider || "sso",
+      providerSubject: ssoUser.providerSubject || null,
+      phoneNumber: ssoUser.phoneNumber || null,
+      aiEnabled: typeof ssoUser.aiEnabled === "boolean" ? ssoUser.aiEnabled : true,
+      aiChatType: ssoUser.aiChatType || "gpt",
+      chatModel: ssoUser.chatModel || "gpt-3.5-turbo",
+      termsAcceptedAt: ssoUser.termsAcceptedAt || null,
+      termsVersion: ssoUser.termsVersion || null,
       createdAt: ssoUser.createdAt,
       updatedAt: ssoUser.updatedAt,
     });

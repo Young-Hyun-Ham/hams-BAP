@@ -3,6 +3,8 @@ import { getUserFromToken } from "@/lib/session";
 export type JwtPayload = {
   id: string;
   sub: string | null;
+  uid?: string | null;
+  userId?: string | null;
   email: string;
   username: string;
   roles?: string[] | null;

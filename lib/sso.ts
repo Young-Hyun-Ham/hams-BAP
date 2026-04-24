@@ -117,9 +117,20 @@ export function buildSsoLogoutUrl(returnTo?: string) {
 export type SsoExchangeUser = {
   id: string;
   loginId?: string;
+  loginIdLower?: string;
   email: string;
+  emailLower?: string;
   nickname?: string;
+  phoneNumber?: string;
   provider?: string;
+  providerSubject?: string;
+  aiEnabled?: boolean;
+  aiChatType?: "gpt" | "gemini" | "claude";
+  apiKey?: string;
+  chatModel?: string;
+  termsAcceptedAt?: string | null;
+  termsVersion?: string | null;
+  passwordHash?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

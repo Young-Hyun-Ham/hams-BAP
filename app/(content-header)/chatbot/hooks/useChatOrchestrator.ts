@@ -1,26 +1,26 @@
-// app/(content-header)/chatbot/hooks/useChatOrchestrator.ts
 "use client";
 
 import { useCallback } from "react";
-import { readMixedTextStream } from "../utils/streamText";
-import { fetchKnowledgeAnswer, getGeminiPrefix } from "../utils/knowledge";
-import { sleep } from "../utils";
+
 import type { ChatMessage } from "../types";
+import { sleep } from "../utils";
+import { fetchKnowledgeAnswer, getGeminiPrefix } from "../utils/knowledge";
+import { readMixedTextStream } from "../utils/streamText";
 
 type PatchMessage = (sessionId: string, messageId: string, fn: (prev: ChatMessage) => ChatMessage) => void;
 
 export function useChatOrchestrator(opts: {
   systemPrompt: string;
+  model?: string | null;
   textareaFocus: () => void;
-
-  ensureSession: () => string; // 세션 없으면 만들고 sessionId 반환
-  addMessage: (m: ChatMessage) => void;
+  ensureSession: () => string;
+  addMessage: (message: ChatMessage) => void;
   patchMessage: PatchMessage;
-
   onScenarioSuggest: (args: { sessionId: string; assistantId: string; ans: any }) => void;
 }) {
   const {
     systemPrompt,
+    model,
     textareaFocus,
     ensureSession,
     addMessage,
@@ -51,8 +51,7 @@ export function useChatOrchestrator(opts: {
     let showFallbackLoading = false;
     let fallbackPrefix = "";
 
-    // 1) knowledge
-    let shouldCallGemini = true;
+    let shouldCallLlm = true;
     try {
       const ans = await fetchKnowledgeAnswer({ text, systemPrompt, mode: "plan", locale: "ko" });
 
@@ -68,7 +67,6 @@ export function useChatOrchestrator(opts: {
       }
 
       const scenarioKey = String(ans?.scenario?.scenarioKey ?? "");
-      const scenarioTitle = String(ans?.scenario?.scenarioTitle ?? "");
       const hasScenario = Boolean(scenarioKey);
 
       if (hasScenario && ans?.shouldCallGemini === false) {
@@ -77,11 +75,13 @@ export function useChatOrchestrator(opts: {
         return;
       }
 
-      shouldCallGemini = Boolean(ans?.shouldCallGemini);
-      if (!shouldCallGemini) shouldCallGemini = true;
+      shouldCallLlm = Boolean(ans?.shouldCallGemini);
+      if (!shouldCallLlm) {
+        shouldCallLlm = true;
+      }
 
       showFallbackLoading = true;
-      fallbackPrefix = getGeminiPrefix(ans) || "일반 답변으로 진행합니다.\n\n";
+      fallbackPrefix = getGeminiPrefix(ans) || "일반 응답으로 진행합니다.\n\n";
 
       patchMessage(sessionId, assistantId, (prev: any) => ({
         ...prev,
@@ -90,28 +90,35 @@ export function useChatOrchestrator(opts: {
         meta: { ...(prev?.meta ?? {}), loading: true },
       }));
     } catch {
-      shouldCallGemini = true;
+      shouldCallLlm = true;
     }
 
-    if (!shouldCallGemini) {
+    if (!shouldCallLlm) {
       textareaFocus();
       return;
     }
 
-    // 2) gemini stream
     try {
-      const res = await fetch("/api/chat/gemini", {
+      const res = await fetch("/api/chatbot/llm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, systemPrompt }),
+        body: JSON.stringify({ prompt: text, systemPrompt, model }),
       });
-      if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
 
-      if (showFallbackLoading) await sleep(200);
+      if (!res.ok) {
+        const message = (await res.text().catch(() => "")).trim();
+        throw new Error(message || `LLM HTTP ${res.status}`);
+      }
+
+      if (showFallbackLoading) {
+        await sleep(200);
+      }
 
       let started = false;
       await readMixedTextStream(res, (delta) => {
-        if (!delta) return;
+        if (!delta) {
+          return;
+        }
 
         if (!started) {
           started = true;
@@ -119,7 +126,7 @@ export function useChatOrchestrator(opts: {
             patchMessage(sessionId, assistantId, (prev: any) => ({
               ...prev,
               kind: "llm",
-              content: (fallbackPrefix ?? "") + delta,
+              content: `${fallbackPrefix ?? ""}${delta}`,
               meta: { ...(prev?.meta ?? {}), loading: false },
             }));
             return;
@@ -129,7 +136,7 @@ export function useChatOrchestrator(opts: {
         patchMessage(sessionId, assistantId, (prev) => ({
           ...prev,
           kind: "llm",
-          content: (prev.content ?? "") + delta,
+          content: `${prev.content ?? ""}${delta}`,
         }));
       });
 
@@ -139,11 +146,12 @@ export function useChatOrchestrator(opts: {
           meta: { ...(prev?.meta ?? {}), loading: false },
         }));
       }
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI 응답 중 오류가 발생했습니다.";
       patchMessage(sessionId, assistantId, (prev: any) => ({
         ...prev,
         meta: { ...(prev?.meta ?? {}), loading: false },
-        content: "⚠️ 답변 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        content: message,
       }));
     } finally {
       if (showFallbackLoading) {
@@ -154,7 +162,7 @@ export function useChatOrchestrator(opts: {
       }
       textareaFocus();
     }
-  }, [systemPrompt, ensureSession, addMessage, patchMessage, onScenarioSuggest, textareaFocus]);
+  }, [systemPrompt, model, ensureSession, addMessage, patchMessage, onScenarioSuggest, textareaFocus]);
 
   return { send };
 }

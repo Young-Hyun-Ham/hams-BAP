@@ -1,4 +1,3 @@
-// app/(content-header)/chatbot/components/emulator/runners/runLlmNode.ts
 import type { AnyNode, ChatStep } from "../../../types";
 import { makeStepId, resolveTemplate } from "../../../utils";
 
@@ -7,26 +6,28 @@ export async function runLlmNode(
   slotSnapshot: Record<string, any>,
   deps: {
     systemPrompt: string;
+    model?: string | null;
     pushBotStep: (id: string, text: string) => void;
     setSteps: React.Dispatch<React.SetStateAction<ChatStep[]>>;
     setSlotValues: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   },
 ) {
-  const { systemPrompt, pushBotStep, setSteps, setSlotValues } = deps;
+  const { systemPrompt, model, pushBotStep, setSteps, setSlotValues } = deps;
 
   try {
     const rawPrompt: string = node.data?.prompt ?? "";
     const prompt = resolveTemplate(rawPrompt, slotSnapshot);
     const outputVar: string = node.data?.outputVar || "llm_output";
 
-    const res = await fetch("/api/chat/gemini", {
+    const res = await fetch("/api/chatbot/llm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, systemPrompt }),
+      body: JSON.stringify({ prompt, systemPrompt, model }),
     });
 
     if (!res.ok || !res.body) {
-      pushBotStep(makeStepId(`${node.id}-err`), `[LLM 오류] 상태 코드: ${res.status}`);
+      const message = (await res.text().catch(() => "")).trim();
+      pushBotStep(makeStepId(`${node.id}-err`), `[LLM 오류] ${message || `상태 코드: ${res.status}`}`);
       return false;
     }
 
@@ -36,7 +37,6 @@ export async function runLlmNode(
     const stepId = makeStepId(node.id);
     let accumulated = "";
 
-    // 빈 step 먼저 만들고 스트리밍으로 patch
     setSteps((prev) => [...prev, { id: stepId, role: "bot", text: "" }]);
 
     while (true) {
@@ -49,13 +49,13 @@ export async function runLlmNode(
 
       accumulated += chunkText;
 
-      setSteps((prev) => prev.map((s) => (s.id === stepId ? { ...s, text: accumulated } : s)));
+      setSteps((prev) => prev.map((step) => (step.id === stepId ? { ...step, text: accumulated } : step)));
     }
 
     setSlotValues((prev) => ({ ...prev, [outputVar]: accumulated }));
     return true;
-  } catch (e) {
-    console.error("LLM 노드 실행 오류:", e);
+  } catch (error) {
+    console.error("LLM node execution error:", error);
     pushBotStep(makeStepId(`${node.id}-err`), "[LLM 실행 오류가 발생했습니다.]");
     return false;
   }

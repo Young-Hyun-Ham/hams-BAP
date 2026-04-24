@@ -56,7 +56,7 @@ function cosineSimilarity(a: number[], b: number[]) {
   return denom ? dot / denom : 0;
 }
 
-/** /api/chat/gemini 스트리밍을 끝까지 읽어서 텍스트로 변환 */
+/** /api/chatbot/llm 스트리밍을 끝까지 읽어서 텍스트로 변환 */
 async function callGeminiStreamToText(
   req: NextRequest,
   prompt: string,
@@ -64,7 +64,7 @@ async function callGeminiStreamToText(
 ): Promise<string> {
   const origin = new URL(req.url).origin;
 
-  const res = await fetch(`${origin}/api/chat/gemini`, {
+  const res = await fetch(`${origin}/api/chatbot/llm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, systemPrompt }),

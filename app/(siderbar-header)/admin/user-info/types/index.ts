@@ -1,17 +1,28 @@
-// lib/dto/types.ts (예시)
-
 export type Role = "guest" | "user" | "admin" | string;
+export type AiChatType = "gpt" | "gemini" | "claude";
 
 export interface AdminUser {
   id: string;
   sub: string;
   email: string | null;
+  emailLower?: string | null;
   name: string | null;
+  nickname?: string | null;
+  loginId?: string | null;
+  loginIdLower?: string | null;
+  phoneNumber?: string | null;
   avatarUrl: string | null;
-  createdAt: string;      // ISO string
-  lastLoginAt: string | null;      // 마지막접속일시
-  roles: Role[];          // jsonb → string[]
+  createdAt: string;
+  lastLoginAt: string | null;
+  roles: Role[];
   provider: string | null;
+  providerSubject?: string | null;
+  aiEnabled?: boolean;
+  aiChatType?: AiChatType;
+  apiKey?: string | null;
+  chatModel?: string | null;
+  termsAcceptedAt?: string | null;
+  termsVersion?: string | null;
 }
 
 export interface UserSearchParams {
@@ -19,13 +30,23 @@ export interface UserSearchParams {
 }
 
 export interface UserUpsertPayload {
-  id?: string;            // uuid
-  sub?: string;           // 없으면 서버에서 gen_random_uuid()::text 로 생성
+  id?: string;
+  sub?: string;
   email?: string | null;
   name?: string | null;
+  nickname?: string | null;
+  loginId?: string | null;
+  phoneNumber?: string | null;
   avatarUrl?: string | null;
-  roles?: Role[];         // 없으면 ["guest"]
+  roles?: Role[];
   provider?: string | null;
-  lastLoginAt?: string;      // 마지막접속일시
-  password?: string;        
+  providerSubject?: string | null;
+  aiEnabled?: boolean;
+  aiChatType?: AiChatType;
+  apiKey?: string | null;
+  chatModel?: string | null;
+  termsAcceptedAt?: string | null;
+  termsVersion?: string | null;
+  lastLoginAt?: string;
+  password?: string;
 }

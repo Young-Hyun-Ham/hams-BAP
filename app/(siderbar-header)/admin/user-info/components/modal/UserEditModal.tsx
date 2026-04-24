@@ -1,21 +1,28 @@
-// app/(siderbar-header)/admin/user-info/components/modal/UserEditModal.tsx
 "use client";
 
-import type { AdminUser } from "../../types";
-import type {
-  ChangeEvent,
-  FormEvent,
-} from "react";
+import type { ChangeEvent, FormEvent } from "react";
 
-type UserFormState = {
+import type { AdminUser, AiChatType } from "../../types";
+
+export type UserFormState = {
   id?: string;
   sub: string;
   name: string;
+  nickname: string;
+  loginId: string;
   email: string;
-  provider?: string | null;
-  rolesText: string; // "user,admin"
-  password: string;          // <-- 추가
-  passwordConfirm: string;   // <-- 추가
+  phoneNumber: string;
+  provider: string;
+  providerSubject: string;
+  rolesText: string;
+  aiEnabled: boolean;
+  aiChatType: AiChatType;
+  apiKey: string;
+  chatModel: string;
+  termsAcceptedAt: string;
+  termsVersion: string;
+  password: string;
+  passwordConfirm: string;
 };
 
 type Props = {
@@ -24,10 +31,14 @@ type Props = {
   isEditing: boolean;
   form: UserFormState;
   userInfo?: AdminUser | null;
-  onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  onSubmit: (e: FormEvent) => void;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onSubmit: (event: FormEvent) => void;
   onClose: () => void;
 };
+
+function inputClassName() {
+  return "w-full rounded-md border border-gray-300 px-3 py-2 text-xs";
+}
 
 export default function UserEditModal({
   isOpen,
@@ -39,144 +50,183 @@ export default function UserEditModal({
   onSubmit,
   onClose,
 }: Props) {
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-lg p-5">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">
-          {isEditing ? "사용자 정보 수정" : "새 사용자 등록"}
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-5 shadow-lg">
+        <h2 className="mb-4 text-sm font-semibold text-gray-800">
+          {isEditing ? "사용자 정보 수정" : "사용자 등록"}
         </h2>
 
-        <form className="space-y-3" onSubmit={onSubmit}>
-          {/* SUB */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-600">SUB (uid)</label>
-            <input
-              name="sub"
-              value={form.sub}
-              onChange={onChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs"
-              placeholder="Firebase uid 또는 고유 식별자"
-              disabled={isEditing} // 기존 사용자는 SUB 수정 방지
-            />
-          </div>
-
-          {/* 이름 */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-600">이름</label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={onChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs"
-              placeholder="이름"
-            />
-          </div>
-
-          {/* 이메일 */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-600">이메일</label>
-            <input
-              name="email"
-              value={form.email}
-              onChange={onChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs"
-              placeholder="email@example.com"
-            />
-          </div>
-
-          {/* Provider */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-600">Provider</label>
-            <select
-              name="provider"
-              value={form.provider ?? "google"}
-              onChange={onChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs bg-white"
-            >
-              <option value="google">Google</option>
-              <option value="firebase">Firebase</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
-
-          {/* Password */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-600">
-              비밀번호{" "}
-              {isEditing && (
-                <span className="text-gray-400">
-                  (비워두면 기존 비밀번호 유지)
-                </span>
-              )}
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={onChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs"
-              placeholder={isEditing ? "변경 시에만 입력" : "비밀번호"}
-              autoComplete="new-password"
-            />
-          </div>
-
-          {/* Password Confirm */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-600">비밀번호 확인</label>
-            <input
-              type="password"
-              name="passwordConfirm"
-              value={form.passwordConfirm}
-              onChange={onChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs"
-              placeholder="비밀번호를 다시 입력"
-              autoComplete="new-password"
-            />
-          </div>
-
-          {/* Roles */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-600">
-              Roles{" "}
-              <span className="text-gray-400">(콤마로 구분, 예: user,admin)</span>
-            </label>
-            <input
-              name="rolesText"
-              value={form.rolesText}
-              onChange={onChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs"
-              placeholder="user,admin"
-            />
-          </div>
-
-          {/* 읽기용 정보 */}
-          {isEditing && userInfo && (
-            <div className="mt-2 text-[11px] text-gray-500 space-y-1">
-              <div>가입일: {userInfo.createdAt?.substring(0, 19)}</div>
-              <div>
-                마지막 접속: {userInfo.lastLoginAt?.substring(0, 19) ?? "-"}
-              </div>
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">SUB (uid)</label>
+              <input
+                className={inputClassName()}
+                disabled={isEditing}
+                name="sub"
+                onChange={onChange}
+                placeholder="SSO 사용자 ID"
+                value={form.sub}
+              />
             </div>
-          )}
 
-          {/* 버튼 */}
-          <div className="mt-4 flex justify-end gap-2">
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Provider</label>
+              <select
+                className={`${inputClassName()} bg-white`}
+                name="provider"
+                onChange={onChange}
+                value={form.provider}
+              >
+                <option value="google">Google</option>
+                <option value="firebase">Firebase</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Name</label>
+              <input className={inputClassName()} name="name" onChange={onChange} value={form.name} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Nickname</label>
+              <input className={inputClassName()} name="nickname" onChange={onChange} value={form.nickname} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Login ID</label>
+              <input className={inputClassName()} name="loginId" onChange={onChange} value={form.loginId} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Email</label>
+              <input className={inputClassName()} name="email" onChange={onChange} value={form.email} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Phone Number</label>
+              <input className={inputClassName()} name="phoneNumber" onChange={onChange} value={form.phoneNumber} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Provider Subject</label>
+              <input className={inputClassName()} name="providerSubject" onChange={onChange} value={form.providerSubject} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Roles</label>
+              <input
+                className={inputClassName()}
+                name="rolesText"
+                onChange={onChange}
+                placeholder="user,admin"
+                value={form.rolesText}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">AI Provider</label>
+              <select
+                className={`${inputClassName()} bg-white`}
+                name="aiChatType"
+                onChange={onChange}
+                value={form.aiChatType}
+              >
+                <option value="gpt">GPT</option>
+                <option value="gemini">Gemini</option>
+                <option value="claude">Claude</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Chat Model</label>
+              <input className={inputClassName()} name="chatModel" onChange={onChange} value={form.chatModel} />
+            </div>
+
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-xs text-gray-600">API Key</label>
+              <input className={inputClassName()} name="apiKey" onChange={onChange} type="password" value={form.apiKey} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Terms Version</label>
+              <input className={inputClassName()} name="termsVersion" onChange={onChange} value={form.termsVersion} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Terms Accepted At</label>
+              <input
+                className={inputClassName()}
+                name="termsAcceptedAt"
+                onChange={onChange}
+                placeholder="2026-04-23T00:00:00.000Z"
+                value={form.termsAcceptedAt}
+              />
+            </div>
+
+            <label className="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-xs text-gray-700">
+              <input checked={form.aiEnabled} name="aiEnabled" onChange={onChange} type="checkbox" />
+              AI chat enabled
+            </label>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">
+                Password
+                {isEditing ? <span className="ml-1 text-gray-400">(leave blank to keep current)</span> : null}
+              </label>
+              <input
+                autoComplete="new-password"
+                className={inputClassName()}
+                name="password"
+                onChange={onChange}
+                type="password"
+                value={form.password}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-600">Password Confirm</label>
+              <input
+                autoComplete="new-password"
+                className={inputClassName()}
+                name="passwordConfirm"
+                onChange={onChange}
+                type="password"
+                value={form.passwordConfirm}
+              />
+            </div>
+          </div>
+
+          {isEditing && userInfo ? (
+            <div className="space-y-1 text-[11px] text-gray-500">
+              <div>Created: {userInfo.createdAt?.substring(0, 19) || "-"}</div>
+              <div>Last login: {userInfo.lastLoginAt?.substring(0, 19) || "-"}</div>
+            </div>
+          ) : null}
+
+          <div className="flex justify-end gap-2">
             <button
-              type="button"
-              className="px-3 py-1.5 rounded-md border border-gray-300 text-xs text-gray-700 bg-white hover:bg-gray-50"
-              onClick={onClose}
+              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
               disabled={loading}
+              onClick={onClose}
+              type="button"
             >
-              취소
+              Cancel
             </button>
             <button
-              type="submit"
-              className="px-4 py-1.5 rounded-md bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              className="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
               disabled={loading}
+              type="submit"
             >
-              {loading ? "저장 중..." : "저장"}
+              {loading ? "Saving..." : "Save"}
             </button>
           </div>
         </form>
