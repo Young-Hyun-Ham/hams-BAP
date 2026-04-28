@@ -44,27 +44,8 @@ function compressCollinear(points) {
 }
 
 function expandDiagonalPairs(points) {
-  if (!Array.isArray(points) || points.length < 2) {
-    return points ?? [];
-  }
-
-  const result = [clonePoint(points[0])];
-
-  for (let i = 1; i < points.length; i += 1) {
-    const prev = result[result.length - 1];
-    const curr = clonePoint(points[i]);
-
-    if (prev.x === curr.x || prev.y === curr.y) {
-      result.push(curr);
-      continue;
-    }
-
-    // 현재 잘 움직이는 구조를 유지하기 위해 "가로 먼저"로만 보정
-    result.push({ x: curr.x, y: prev.y });
-    result.push(curr);
-  }
-
-  return result;
+  if (!Array.isArray(points)) return [];
+  return points.map(clonePoint)
 }
 
 function normalize(points) {
@@ -72,11 +53,37 @@ function normalize(points) {
 }
 
 function getInitialBendPoints(sourceX, sourceY, targetX, targetY) {
-  if (sourceY === targetY || sourceX === targetX) {
-    return [];
-  }
+  const MIN_EXIT_SPACE = 40; // 노드에서 빠져나올 최소 거리
+  
+  // 상황 판별: 타겟이 소스보다 우측에 여유 있게(최소 공간 이상) 있는가?
+  const isTargetFarRight = targetX > sourceX + (MIN_EXIT_SPACE * 2);
 
-  return [{ x: targetX, y: sourceY }];
+  if (isTargetFarRight) {
+    /**
+     * CASE 1: 일반적인 Z자 연결 (이미지의 왼쪽 두 노드 형태)
+     * 소스와 타겟 사이의 중간 지점에서 한 번 꺾입니다.
+     */
+    const midX = (sourceX + targetX) / 2;
+    return [
+      { x: midX, y: sourceY },
+      { x: midX, y: targetY },
+    ];
+  } else {
+    /**
+     * CASE 2: 노드 수직 배치 또는 역방향 배치 (이미지의 오른쪽 두 노드 형태)
+     * 노드를 관통하지 않도록 오른쪽으로 나갔다가 타겟 왼쪽으로 돌아 들어갑니다.
+     */
+    const safeExitX = sourceX + MIN_EXIT_SPACE;
+    const safeEntryX = targetX - MIN_EXIT_SPACE;
+    const midY = (sourceY + targetY) / 2;
+
+    return [
+      { x: safeExitX, y: sourceY },   // 1. 소스에서 오른쪽으로 나감
+      { x: safeExitX, y: midY },      // 2. 중간 높이까지 내려감
+      { x: safeEntryX, y: midY },     // 3. 타겟의 왼쪽 뒤편으로 이동
+      { x: safeEntryX, y: targetY },  // 4. 타겟 높이로 맞춤
+    ];
+  }
 }
 
 function getBendPoints(sourceX, sourceY, targetX, targetY, storedPoints) {

@@ -184,7 +184,13 @@ const BotMessagePart = ({
               {/* input: 'defaultValue' -> 'value'로 변경, onDoubleClick 추가 */}
               {el.type === 'input' && (
                 <input
-                  type={el.validation?.type === 'email' ? 'email' : 'text'}
+                  type={
+                    el.validation?.type === 'email'
+                      ? 'email'
+                      : el.validation?.type === 'number'
+                      ? 'number'
+                      : 'text'
+                  }
                   className={styles.formInput}
                   placeholder={interpolateMessage(el.placeholder, slots)}
                   value={currentValue}

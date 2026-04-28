@@ -112,6 +112,8 @@ export const validateInput = (value, validation) => {
   if (!validation) return true;
 
   switch (validation.type) {
+    case 'number':
+      return /^-?\d+(\.\d+)?$/.test(value);
     case 'email':
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     case 'phone number':

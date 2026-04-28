@@ -1240,6 +1240,8 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
                     type="button"
                     title={"Show chatbot simulator"}
                     onClick={() => {
+                      // console.log("save nodes data ======> ", nodes);
+                      // console.log("save edges data ======> ", edges);
                       // 시뮬레이터가 열리는 동안 노드 드래그 비활성화
                       setIsLeftPanelCollapsed(!isSimulatorVisible);
                       // 시뮬레이터 열 때 캔버스 패널은 자동으로 숨겨지도록 설정

@@ -89,8 +89,9 @@ function ElementEditor({ element, index, onUpdate, onDelete, onGridCellChange })
             <label>Validation</label>
             <select value={element.validation?.type || 'text'} onChange={(e) => handleValidationChange('type', e.target.value)}>
               <option value="text">Text</option>
+              <option value="number">Number</option>
               <option value="email">Email</option>
-              <option value="phone number">Phone Number</option>
+              <option value="phoneNumber">Phone Number</option>
               <option value="custom">Custom (Regex)</option>
             </select>
           </div>
