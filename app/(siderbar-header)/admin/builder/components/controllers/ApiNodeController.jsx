@@ -9,7 +9,7 @@ import ApiTemplateModal from '../modals/ApiTemplateModal';
 import { useNodeController } from './hooks/useNodeController';
 import ChainNextCheckbox from './common/ChainNextCheckbox';
 
-function ApiCallEditor({ apiCall, onUpdate, onDelete, onTest }) {
+function ApiCallEditor({ apiCall, onUpdate, onDelete, onTest, isTesting }) {
   // ... (ApiCallEditor 컴포넌트 내용은 변경 없음)
   const handleUpdate = (field, value) => {
     onUpdate({ ...apiCall, [field]: value });
@@ -75,8 +75,19 @@ function ApiCallEditor({ apiCall, onUpdate, onDelete, onTest }) {
         </div>
       </div>
       <div className={styles.editorActions}>
-        <button className={styles.testApiButton} onClick={() => onTest(apiCall)}>Test</button>
-        <button className={styles.deleteElementButton} onClick={() => onDelete(apiCall.id)}>Delete</button>
+        <button
+          className={styles.testApiButton}
+          onClick={() => onTest(apiCall)}
+          disabled={isTesting}
+        >
+          {isTesting ? 'Testing...' : 'Test'}
+        </button>
+        <button 
+          className={styles.deleteElementButton} 
+          onClick={() => onDelete(apiCall.id)}
+        >
+          Delete
+        </button>
       </div>
     </div>
   );
@@ -89,6 +100,9 @@ function ApiNodeController({ localNode, setLocalNode, backend }) {
   const [selectedApiCallId, setSelectedApiCallId] = useState(null);
   // 3. 훅 사용 및 로컬 함수 제거
   const { handleLocalDataChange } = useNodeController(setLocalNode);
+
+  const [isTestingSingle, setIsTestingSingle] = useState(false);
+  const [testingApiCallId, setTestingApiCallId] = useState(null);
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -172,11 +186,25 @@ function ApiNodeController({ localNode, setLocalNode, backend }) {
   };
 
   const handleTestApiCall = async (apiCall) => {
+    if (localNode.data.isMulti) {
+      if (testingApiCallId) return;
+      setTestingApiCallId(apiCall.id);
+    } else {
+      if (isTestingSingle) return;
+      setIsTestingSingle(true);
+    }
+
     try {
       const result = await backendService.testApiCall(apiCall);
       await showAlert(`API Test Success!\n\nResponse:\n${JSON.stringify(result, null, 2)}`);
     } catch (error) {
       await showAlert(`API Test Failed:\n${error.message}`);
+    } finally {
+      if (localNode.data.isMulti) {
+        setTestingApiCallId(null);
+      } else {
+        setIsTestingSingle(false);
+      }
     }
   };
 
@@ -332,6 +360,7 @@ function ApiNodeController({ localNode, setLocalNode, backend }) {
             onUpdate={handleUpdateApiCall}
             onDelete={handleDeleteApiCall}
             onTest={handleTestApiCall}
+            isTesting={testingApiCallId === selectedApiCall.id}
           />
         )}
       </>

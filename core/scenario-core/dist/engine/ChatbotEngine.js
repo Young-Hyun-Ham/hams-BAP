@@ -96,7 +96,11 @@ class ChatbotEngine {
                 return false;
         }
     }
-    getNextNode(currentNodeId, sourceHandle = null, slots = {}) {
+    getNextNode(currentNodeId, sourceHandle = null, slots = {}, anchorNodeId = null) {
+        // Anchor Node Check - If we've reached the anchor node, we pause execution and return active status
+        if (anchorNodeId && currentNodeId === anchorNodeId) {
+            return null;
+        }
         const { nodes, edges } = this.scenario;
         const outgoingEdges = edges.filter(e => e.source === currentNodeId);
         if (outgoingEdges.length === 0)
@@ -138,7 +142,7 @@ class ChatbotEngine {
         }
         // [New] Bubble up to parent node if current node is in a group and has no outgoing edges
         if (sourceNode?.parentNode) {
-            return this.getNextNode(sourceNode.parentNode, sourceHandle, slots);
+            return this.getNextNode(sourceNode.parentNode, sourceHandle, slots, anchorNodeId);
         }
         return null;
     }
@@ -194,7 +198,7 @@ class ChatbotEngine {
         }
         return newSlots;
     }
-    async run(startNodeId, currentSlots, callbacks = {}) {
+    async run(startNodeId, currentSlots, callbacks = {}, { anchorNodeId }) {
         let currentNode = startNodeId ? this.getNodeById(startNodeId) : null;
         let slots = { ...currentSlots };
         let isLoopActive = !!currentNode;
@@ -214,7 +218,7 @@ class ChatbotEngine {
             if (currentNode.type === 'delay') {
                 if (callbacks.onDelay)
                     await callbacks.onDelay(currentNode);
-                currentNode = this.getNextNode(currentNode.id, null, slots);
+                currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
             }
             else if (currentNode.type === 'api') {
                 const currentId = currentNode.id;
@@ -222,16 +226,16 @@ class ChatbotEngine {
                     try {
                         const result = await callbacks.onApi(currentNode, slots);
                         slots = result.newSlots || slots;
-                        currentNode = this.getNextNode(currentId, result.success ? 'onSuccess' : 'onError', slots);
+                        currentNode = this.getNextNode(currentId, result.success ? 'onSuccess' : 'onError', slots, anchorNodeId);
                     }
                     catch (e) {
                         if (callbacks.onError)
                             callbacks.onError(e);
-                        currentNode = this.getNextNode(currentId, 'onError', slots);
+                        currentNode = this.getNextNode(currentId, 'onError', slots, anchorNodeId);
                     }
                 }
                 else {
-                    currentNode = this.getNextNode(currentId, 'onError', slots);
+                    currentNode = this.getNextNode(currentId, 'onError', slots, anchorNodeId);
                 }
             }
             else if (currentNode.type === 'llm') {
@@ -240,21 +244,21 @@ class ChatbotEngine {
                     try {
                         const result = await callbacks.onLlm(currentNode, slots);
                         slots = result.newSlots || slots;
-                        currentNode = this.getNextNode(currentId, result.success ? 'onSuccess' : 'onError', slots);
+                        currentNode = this.getNextNode(currentId, result.success ? 'onSuccess' : 'onError', slots, anchorNodeId);
                     }
                     catch (e) {
                         if (callbacks.onError)
                             callbacks.onError(e);
-                        currentNode = this.getNextNode(currentId, 'onError', slots);
+                        currentNode = this.getNextNode(currentId, 'onError', slots, anchorNodeId);
                     }
                 }
                 else {
-                    currentNode = this.getNextNode(currentId, null, slots);
+                    currentNode = this.getNextNode(currentId, null, slots, anchorNodeId);
                 }
             }
             else if (currentNode.type === 'setSlot' || currentNode.type === 'set-slot') {
                 slots = this.applySetSlot(currentNode, slots);
-                currentNode = this.getNextNode(currentNode.id, null, slots);
+                currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
             }
             else if (currentNode.type === 'scenario') {
                 const childNodes = this.scenario.nodes.filter(n => n.parentNode === currentNode?.id);
@@ -264,21 +268,21 @@ class ChatbotEngine {
                     currentNode = innerStartNode;
                 }
                 else {
-                    currentNode = this.getNextNode(currentNode.id, null, slots);
+                    currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
                 }
             }
             else if (currentNode.type === 'branch') {
-                currentNode = this.getNextNode(currentNode.id, null, slots);
+                currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
             }
             else if (currentNode.type === 'toast') {
                 if (callbacks.onToast)
                     callbacks.onToast(currentNode, slots);
-                currentNode = this.getNextNode(currentNode.id, null, slots);
+                currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
             }
             else if (currentNode.type === 'link') {
                 if (callbacks.onLink)
                     callbacks.onLink(currentNode, slots);
-                currentNode = this.getNextNode(currentNode.id, null, slots);
+                currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
                 // ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
                 // selectionGroup 처리 추가 - hyh
             }
@@ -296,7 +300,7 @@ class ChatbotEngine {
                     currentNode = startNode;
                 }
                 else {
-                    currentNode = this.getNextNode(currentNode.id, null, slots);
+                    currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
                 }
                 // ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
             }
@@ -304,7 +308,7 @@ class ChatbotEngine {
                 // Link, Message (non-interactive), Toast etc.
                 if (callbacks.onMessage)
                     callbacks.onMessage(currentNode, slots);
-                currentNode = this.getNextNode(currentNode.id, null, slots);
+                currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
             }
         }
         // Termination Sequence

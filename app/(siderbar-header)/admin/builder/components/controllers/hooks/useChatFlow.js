@@ -188,8 +188,8 @@ export const useChatFlow = (nodes, edges) => {
       },
       onEnd: () => {
         // 종료 시 추가 로직이 필요하다면 여기에 작성 (이미 라이브러리에서 메시지를 보냅니다)
-      }
-    });
+      },
+    }, { anchorNodeId: anchorNodeId });
 
     // ================================================================
     // 20260318 - runScenario 종료 후 active 노드를 직접 렌더링 + 슬롯 동기화
@@ -224,7 +224,7 @@ export const useChatFlow = (nodes, edges) => {
     } else {
       setCurrentId(null);
     }
-  }, [setSlots, setHistory, setFixedMenu, pushBotNode, nodes, edges]);
+  }, [setSlots, setHistory, setFixedMenu, pushBotNode, nodes, edges, anchorNodeId]);
 
   const proceedToNextNode = useCallback((sourceHandle, sourceNodeId, updatedSlots) => {
     if (sourceNodeId === anchorNodeId) {
@@ -233,7 +233,7 @@ export const useChatFlow = (nodes, edges) => {
     }
     engine.current.interpolateMessage("")
     // console.log('before proceed', updatedSlots);
-    const nextNode = engine.current.getNextNode(sourceNodeId, sourceHandle, updatedSlots);
+    const nextNode = engine.current.getNextNode(sourceNodeId, sourceHandle, updatedSlots, anchorNodeId);
     // nextNode가 null이더라도 runScenario(null)을 호출하여 라이브러리의 종료 시퀀스를 트리거합니다.
     runScenario(nextNode?.id || null, updatedSlots);
     // console.log('nextNode', nextNode);

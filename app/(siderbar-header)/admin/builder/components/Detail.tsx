@@ -1129,9 +1129,9 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
                   <button
                     type="button"
                     onClick={() => {
-                      console.log("save memo panel data ======> ", memos);
-                      console.log("save memo node data ======> ", memoNodes);
-                      console.log("save scenario data ======> ", scenario);
+                      // console.log("save memo panel data ======> ", memos);
+                      // console.log("save memo node data ======> ", memoNodes);
+                      // console.log("save scenario data ======> ", scenario);
                       resetExecution();
                       saveScenario(backend, scenario);
                     }}
@@ -1419,7 +1419,10 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
             <button
               type="button"
               className={`${styles.layerMenuItem} ${!clipboard ? styles.layerMenuItemDisabled : ""}`}
-              onClick={() => handleContextPaste(contextMenu.flowPosition ?? null)}
+              onClick={() => {
+                handleContextPaste(contextMenu.flowPosition ?? null);
+                closeContextMenu();
+              }}
               disabled={!clipboard}
             >
               <Clipboard size={16} className={styles.layerMenuIcon} />
@@ -1431,7 +1434,10 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
             <button
               type="button"
               className={styles.layerMenuItem}
-              onClick={() => setIsLeftPanelCollapsed((prev) => !prev)}
+              onClick={() => {
+                setIsLeftPanelCollapsed((prev) => !prev);
+                closeContextMenu();
+              }}
             >
               {isLeftPanelCollapsed ? 
                 <PanelLeftOpen size={16} className={styles.layerMenuIcon} /> : 
@@ -1442,7 +1448,10 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
             <button
               type="button"
               className={styles.layerMenuItem}
-              onClick={() => setIsMemoVisible((prev) => !prev)}
+              onClick={() => {
+                setIsMemoVisible((prev) => !prev);
+                closeContextMenu();
+              }}
             >
               <NotebookPen size={16} className={styles.layerMenuIcon} />
               memo panel
@@ -1450,7 +1459,10 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
             <button
               type="button"
               className={styles.layerMenuItem}
-              onClick={() => setIsSlotDisplayVisible((prev) => !prev)}
+              onClick={() => {
+                setIsSlotDisplayVisible((prev) => !prev);
+                closeContextMenu();
+              }}
             >
               <Database size={16} className={styles.layerMenuIcon} />
               Runtime State
@@ -1462,8 +1474,8 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
               type="button"
               className={styles.layerMenuItem}
               onClick={() => {
-                setContextMenu({open: false, x: 0, y: 0, target: "pane"});
                 setToolMode("pan");
+                closeContextMenu();
               }}
             >
               <Hand size={16} className={styles.layerMenuIcon} />
@@ -1473,8 +1485,8 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
               type="button"
               className={styles.layerMenuItem}
               onClick={() => {
-                setContextMenu({open: false, x: 0, y: 0, target: "pane"});
                 setToolMode("select");
+                closeContextMenu();
               }}
             >
               <MousePointer2 size={16} className={styles.layerMenuIcon} />
@@ -1487,8 +1499,8 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
               type="button"
               className={styles.layerMenuItem}
               onClick={() => {
-                setContextMenu({open: false, x: 0, y: 0, target: "pane"});
                 addCanvasMemo();
+                closeContextMenu();
               }}
             >
               <StickyNote size={16} className={styles.layerMenuIcon} />
@@ -1501,7 +1513,6 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
               type="button"
               className={styles.layerMenuItem}
               onClick={() => {
-                setContextMenu({open: false, x: 0, y: 0, target: "pane"});
                 onClose();
               }}
             >

@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Handle, Position } from 'reactflow';
 import { useModal } from '@/providers/ModalProvider';
 import styles from './ChatNodes.module.css';
@@ -14,6 +15,11 @@ function ApiNode({ id, data }) {
   const { showAlert } = useModal();
   const apiCount = data.apis?.length || 0;
   const isMulti = data.isMulti;
+
+  const [isTesting, setIsTesting] = useState(false);
+
+  // 로딩 UI 확인용 강제 대기 함수
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   // 20260317 - 모달 Alert 추가
   const openApiResultModal = async ({ title, payload, isError = false }) => {
@@ -55,8 +61,13 @@ function ApiNode({ id, data }) {
 
   const handleApiTest = async (e) => {
     e.stopPropagation();
-    if (isMulti) return; // Multi 모드일 때는 컨트롤러에서 개별 테스트
+    if (isMulti || isTesting) return; // Multi 모드일 때는 컨트롤러에서 개별 테스트
+    setIsTesting(true);
+
     try {
+      // 로딩 UI 확인용 강제 대기 3초
+      await sleep(3000);
+
       const result = await backendService.testApiCall(data);
       // await showAlert(`API Test Success!\n\nResponse:\n${JSON.stringify(result, null, 2)}`);
       await openApiResultModal({
@@ -71,13 +82,25 @@ function ApiNode({ id, data }) {
         payload: error?.message || 'Unknown error',
         isError: true,
       });
+    } finally {
+      setIsTesting(false);
     }
   };
 
   // 4. Wrapper에 전달할 추가 헤더 버튼 정의
   const extraHeaderButtons = !isMulti ? (
-    <button onClick={handleApiTest} className={styles.playButton} title="Test API" style={{ color: textColor }}>
-      <PlayIcon />
+    <button 
+      onClick={handleApiTest} 
+      className={styles.playButton} 
+      title="Test API" 
+      style={{ color: textColor }}
+      disabled={isTesting}
+    >
+      {isTesting ? (
+        <span className={styles.buttonSpinner} />
+      ) : (
+        <PlayIcon />
+      )}
     </button>
   ) : null;
 

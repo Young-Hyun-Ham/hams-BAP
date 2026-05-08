@@ -23,11 +23,13 @@ export declare class ChatbotEngine {
     interpolateMessage(message: string, slots: Record<string, any>): string;
     getDeepValue(obj: any, path: string): any;
     evaluateCondition(slotValue: any, operator: string, conditionValue: any): boolean;
-    getNextNode(currentNodeId: string, sourceHandle?: string | null, slots?: any): ScenarioNode | null;
+    getNextNode(currentNodeId: string, sourceHandle?: string | null, slots?: any, anchorNodeId?: string | null): ScenarioNode | null;
     isInteractiveNode(node: ScenarioNode | undefined): boolean;
     isAutoPassthroughNode(node: ScenarioNode | undefined): boolean;
     applySetSlot(node: ScenarioNode, slots: Record<string, any>): Record<string, any>;
-    run(startNodeId: string | null | undefined, currentSlots: Record<string, any>, callbacks?: EngineCallbacks): Promise<{
+    run(startNodeId: string | null | undefined, currentSlots: Record<string, any>, callbacks: EngineCallbacks | undefined, { anchorNodeId }: {
+        anchorNodeId: string | null;
+    }): Promise<{
         status: 'active' | 'completed' | 'failed';
         currentNodeId: string | null;
         slots: Record<string, any>;

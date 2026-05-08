@@ -119,7 +119,12 @@ export class ChatbotEngine {
     }
   }
 
-  getNextNode(currentNodeId: string, sourceHandle: string | null = null, slots: any = {}): ScenarioNode | null {
+  getNextNode(currentNodeId: string, sourceHandle: string | null = null, slots: any = {}, anchorNodeId: string | null = null): ScenarioNode | null {
+    // Anchor Node Check - If we've reached the anchor node, we pause execution and return active status
+    if (anchorNodeId && currentNodeId === anchorNodeId) {
+      return null;
+    }
+
     const { nodes, edges } = this.scenario;
     const outgoingEdges = edges.filter(e => e.source === currentNodeId);
     if (outgoingEdges.length === 0) return null;
@@ -163,7 +168,7 @@ export class ChatbotEngine {
 
     // [New] Bubble up to parent node if current node is in a group and has no outgoing edges
     if (sourceNode?.parentNode) {
-      return this.getNextNode(sourceNode.parentNode, sourceHandle, slots);
+      return this.getNextNode(sourceNode.parentNode, sourceHandle, slots, anchorNodeId);
     }
 
     return null;
@@ -216,7 +221,7 @@ export class ChatbotEngine {
     return newSlots;
   }
 
-  async run(startNodeId: string | null | undefined, currentSlots: Record<string, any>, callbacks: EngineCallbacks = {}): Promise<{ status: 'active' | 'completed' | 'failed', currentNodeId: string | null, slots: Record<string, any> }> {
+  async run(startNodeId: string | null | undefined, currentSlots: Record<string, any>, callbacks: EngineCallbacks = {}, { anchorNodeId }: { anchorNodeId: string | null }): Promise<{ status: 'active' | 'completed' | 'failed', currentNodeId: string | null, slots: Record<string, any> }> {
     let currentNode: ScenarioNode | null | undefined = startNodeId ? this.getNodeById(startNodeId) : null;
     let slots = { ...currentSlots };
     let isLoopActive = !!currentNode;
@@ -239,20 +244,20 @@ export class ChatbotEngine {
 
       if (currentNode.type === 'delay') {
         if (callbacks.onDelay) await callbacks.onDelay(currentNode);
-        currentNode = this.getNextNode(currentNode.id, null, slots);
+        currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
       } else if (currentNode.type === 'api') {
         const currentId = currentNode.id;
         if (callbacks.onApi) {
           try {
             const result = await callbacks.onApi(currentNode, slots);
             slots = result.newSlots || slots;
-            currentNode = this.getNextNode(currentId, result.success ? 'onSuccess' : 'onError', slots);
+            currentNode = this.getNextNode(currentId, result.success ? 'onSuccess' : 'onError', slots, anchorNodeId);
           } catch (e) {
             if (callbacks.onError) callbacks.onError(e);
-            currentNode = this.getNextNode(currentId, 'onError', slots);
+            currentNode = this.getNextNode(currentId, 'onError', slots, anchorNodeId);
           }
         } else {
-          currentNode = this.getNextNode(currentId, 'onError', slots);
+          currentNode = this.getNextNode(currentId, 'onError', slots, anchorNodeId);
         }
       } else if (currentNode.type === 'llm') {
         const currentId = currentNode.id;
@@ -260,17 +265,17 @@ export class ChatbotEngine {
           try {
             const result = await callbacks.onLlm(currentNode, slots);
             slots = result.newSlots || slots;
-            currentNode = this.getNextNode(currentId, result.success ? 'onSuccess' : 'onError', slots);
+            currentNode = this.getNextNode(currentId, result.success ? 'onSuccess' : 'onError', slots, anchorNodeId);
           } catch (e) {
             if (callbacks.onError) callbacks.onError(e);
-            currentNode = this.getNextNode(currentId, 'onError', slots);
+            currentNode = this.getNextNode(currentId, 'onError', slots, anchorNodeId);
           }
         } else {
-          currentNode = this.getNextNode(currentId, null, slots);
+          currentNode = this.getNextNode(currentId, null, slots, anchorNodeId);
         }
       } else if (currentNode.type === 'setSlot' || currentNode.type === 'set-slot') {
         slots = this.applySetSlot(currentNode, slots);
-        currentNode = this.getNextNode(currentNode.id, null, slots);
+        currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
       } else if (currentNode.type === 'scenario') {
         const childNodes = this.scenario.nodes.filter(n => n.parentNode === currentNode?.id);
         const childNodeIds = new Set(childNodes.map(n => n.id));
@@ -280,16 +285,16 @@ export class ChatbotEngine {
         if (innerStartNode) {
           currentNode = innerStartNode;
         } else {
-          currentNode = this.getNextNode(currentNode.id, null, slots);
+          currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
         }
       } else if (currentNode.type === 'branch') {
-        currentNode = this.getNextNode(currentNode.id, null, slots);
+        currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
       } else if (currentNode.type === 'toast') {
         if (callbacks.onToast) callbacks.onToast(currentNode, slots);
-        currentNode = this.getNextNode(currentNode.id, null, slots);
+        currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
       } else if (currentNode.type === 'link') {
         if (callbacks.onLink) callbacks.onLink(currentNode, slots);
-        currentNode = this.getNextNode(currentNode.id, null, slots);
+        currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
       // ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
       // selectionGroup 처리 추가 - hyh
       } else if (currentNode.type === 'selectionGroup') { 
@@ -311,13 +316,13 @@ export class ChatbotEngine {
         if (startNode) {
           currentNode = startNode;
         } else {
-          currentNode = this.getNextNode(currentNode.id, null, slots);
+          currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
         }
       // ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
       } else {
         // Link, Message (non-interactive), Toast etc.
         if (callbacks.onMessage) callbacks.onMessage(currentNode, slots);
-        currentNode = this.getNextNode(currentNode.id, null, slots);
+        currentNode = this.getNextNode(currentNode.id, null, slots, anchorNodeId);
       }
     }
 
