@@ -41,6 +41,15 @@ type RunNodeResult = {
   waitMessage?: string;
 };
 
+type FormElement = {
+  id?: string;
+  name?: string;
+  type?: string;
+  defaultValue?: unknown;
+};
+
+type FormInputValues = Record<string, unknown>;
+
 const now = () => new Date().toISOString();
 
 const wait = (ms: number) =>
@@ -54,7 +63,6 @@ export function useBuilderExecution({
 }: UseBuilderExecutionArgs) {
   const startNodeId = useBuilderStore((state: any) => state.startNodeId);
   const anchorNodeId = useBuilderStore((state: any) => state.anchorNodeId);
-  const slots = useBuilderStore((state: any) => state.slots);
   const setSlots = useBuilderStore((state: any) => state.setSlots);
 
   const openBranchSelection = builderExecutionStore(
@@ -63,11 +71,17 @@ export function useBuilderExecution({
   const closeBranchSelection = builderExecutionStore(
     (state) => state.closeBranchSelection
   );
+  const openFormInput = builderExecutionStore((state) => state.openFormInput);
+  const closeFormInput = builderExecutionStore((state) => state.closeFormInput);
 
   const pendingBranchNodeRef = useRef<BuilderNode | null>(null);
+  const pendingFormNodeRef = useRef<BuilderNode | null>(null);
 
   const branchSelectionResolverRef = useRef<
     ((reply: { display: string; value: string } | null) => void) | null
+  >(null);
+  const formInputResolverRef = useRef<
+    ((values: FormInputValues | null) => void) | null
   >(null);
 
   // 선택 대기 함수
@@ -111,6 +125,84 @@ export function useBuilderExecution({
 
     resolve?.(null);
   }, [closeBranchSelection]);
+
+  const getInitialFormValues = useCallback(
+    (node: BuilderNode, currentSlots: Record<string, unknown>) => {
+      const initialValues: FormInputValues = {};
+      const elements = node.data?.elements ?? [];
+
+      elements.forEach((element: FormElement) => {
+        const key = element?.name || element?.id;
+        if (!key) return;
+
+        if (element.type === "checkbox") {
+          initialValues[key] = Array.isArray(element.defaultValue)
+            ? element.defaultValue
+            : [];
+          return;
+        }
+
+        if (
+          element.defaultValue !== undefined &&
+          element.defaultValue !== ""
+        ) {
+          initialValues[key] = interpolateMessage(
+            String(element.defaultValue),
+            currentSlots
+          );
+          return;
+        }
+
+        initialValues[key] = "";
+      });
+
+      return initialValues;
+    },
+    []
+  );
+
+  const requestFormInput = useCallback(
+    (node: BuilderNode, currentSlots: Record<string, unknown>) => {
+      return new Promise<FormInputValues | null>((resolve) => {
+        const elements = node.data?.elements ?? [];
+        const initialValues = getInitialFormValues(node, currentSlots);
+
+        pendingFormNodeRef.current = node;
+        formInputResolverRef.current = resolve;
+
+        openFormInput({
+          nodeId: node.id,
+          nodeType: node.type,
+          title: node.data?.title ?? "Form input",
+          slotKey: node.data?.slotKey,
+          elements,
+          initialValues,
+        });
+      });
+    },
+    [getInitialFormValues, openFormInput]
+  );
+
+  const submitFormInput = useCallback(
+    (values: FormInputValues) => {
+      const resolve = formInputResolverRef.current;
+      formInputResolverRef.current = null;
+      pendingFormNodeRef.current = null;
+      closeFormInput();
+
+      resolve?.(values);
+    },
+    [closeFormInput]
+  );
+
+  const cancelFormInput = useCallback(() => {
+    const resolve = formInputResolverRef.current;
+    formInputResolverRef.current = null;
+    pendingFormNodeRef.current = null;
+    closeFormInput();
+
+    resolve?.(null);
+  }, [closeFormInput]);
 
 
   const executionRunning = builderExecutionStore(
@@ -317,6 +409,31 @@ export function useBuilderExecution({
       });
 
       return nextSlots;
+    },
+    []
+  );
+
+  const applyFormInputValues = useCallback(
+    (node: BuilderNode, currentSlots: Record<string, unknown>) => {
+      const nextSlots = { ...currentSlots };
+      const formValues: Record<string, unknown> = {};
+      const elements = node.data?.elements ?? [];
+
+      elements.forEach((element: FormElement) => {
+        if (!element?.name) return;
+        const value = currentSlots[element.name];
+        nextSlots[element.name] = value;
+        formValues[element.name] = value;
+      });
+
+      if (node.data?.slotKey && Object.keys(formValues).length > 0) {
+        nextSlots[node.data.slotKey] = formValues;
+      }
+
+      return {
+        nextSlots,
+        formValues,
+      };
     },
     []
   );
@@ -648,7 +765,6 @@ export function useBuilderExecution({
           };
         }
 
-        case "form":
         case "slotfilling":
         case "fixedmenu":
           return {
@@ -657,6 +773,42 @@ export function useBuilderExecution({
             waitForUser: true,
             waitMessage: `Interactive node '${node.type}' requires manual input.`,
           };
+
+        case "form": {
+          log("wait", {
+            nodeId: node.id,
+            nodeType: node.type,
+            message: "Waiting for form input.",
+            payload: {
+              title: node.data?.title ?? null,
+              elements: node.data?.elements ?? [],
+            },
+          });
+
+          const submittedValues = await requestFormInput(node, currentSlots);
+
+          if (!submittedValues) {
+            throw new Error("Form input was canceled.");
+          }
+
+          const { nextSlots, formValues } = applyFormInputValues(node, {
+            ...currentSlots,
+            ...submittedValues,
+          });
+
+          if (Object.keys(formValues).length > 0) {
+            setSlots(nextSlots);
+          }
+
+          return {
+            slots: nextSlots,
+            nextNode: findNextNode(node.id, null),
+            payload: {
+              formValues,
+              submitted: true,
+            },
+          };
+        }
 
         case "scenario":
         case "selectionGroup": {
@@ -688,21 +840,36 @@ export function useBuilderExecution({
     },
     [
       applySetSlotAssignments,
+      applyFormInputValues,
       assertNotCanceled,
       executeApiNode,
       executeLlmNode,
       findGroupEntryNode,
       findNextNode,
+      log,
+      requestBranchSelection,
+      requestFormInput,
       resolveBranchHandle,
       setSlots,
     ]
   );
 
   const stopExecution = useCallback(() => {
+    const branchResolve = branchSelectionResolverRef.current;
+    const formResolve = formInputResolverRef.current;
+
     cancelRef.current = true;
     inFlightRef.current = false;
+    branchSelectionResolverRef.current = null;
+    pendingBranchNodeRef.current = null;
+    formInputResolverRef.current = null;
+    pendingFormNodeRef.current = null;
+    closeBranchSelection();
+    closeFormInput();
+    branchResolve?.(null);
+    formResolve?.(null);
     cancelExecution("Stopped by user.");
-  }, [cancelExecution]);
+  }, [cancelExecution, closeBranchSelection, closeFormInput]);
 
   const runBetweenStartAndAnchor = useCallback(async () => {
     if (inFlightRef.current) return;
@@ -837,9 +1004,9 @@ export function useBuilderExecution({
     resetExecution,
     runNode,
     setExecutionCurrentNode,
+    setSlots,
     startExecution,
     startNodeId,
-    slots,
   ]);
 
   return {
@@ -848,5 +1015,7 @@ export function useBuilderExecution({
     stopExecution,
     selectBranchReply,
     cancelBranchReplySelection,
+    submitFormInput,
+    cancelFormInput,
   };
 }

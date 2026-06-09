@@ -16,7 +16,7 @@ import * as firebaseApi from '../services/firebaseApi';
 
 import { createNodeData, createFormElement } from '../utils/nodeFactory';
 import * as backendService from '../services/backendService';
-import { BackendKind } from '../types/types';
+import { BackendKind, TreeItem, UserInfo } from '../types/types';
 import { createGroupActionStore } from './groupActionStore';
 import {
   createEdgeControlActionStore,
@@ -154,8 +154,94 @@ function mergeColors(
   }, {} as ColorMap);
 }
 
+/* scenario detail nodes data */
+export const MOCK_UP_TREE_DATA: TreeItem[] = [
+  {
+    id: 'sec-default',
+    index: 0,
+    label: 'Default',
+    children: [
+      {
+        id: 'message',
+        type: 'message',
+        index: 0,
+        label: 'Message',
+        children: [],
+      },
+      {
+        id: 'setSlot',
+        type: 'setSlot',
+        index: 1,
+        label: 'Set Slot',
+        children: [],
+      },
+      {
+        id: 'branch',
+        type: 'branch',
+        index: 2,
+        label: 'Condition Branch',
+        children: [],
+      },
+      { id: 'form', type: 'form', index: 3, label: 'Form', children: [] },
+      { id: 'link', type: 'link', index: 4, label: 'Link', children: [] },
+      { id: 'api', type: 'api', index: 5, label: 'API', children: [] },
+      {
+        id: 'iframe',
+        type: 'iframe',
+        index: 6,
+        label: 'iframe',
+        children: [],
+      },
+    ],
+  },
+  {
+    id: 'sec-biz',
+    index: 1,
+    label: 'Business',
+    children: [
+      {
+        id: 'ScenarioGroup',
+        type: 'scenarioGroup',
+        index: 0,
+        label: 'Scenario Group',
+        children: [],
+      },
+    ],
+  },
+  {
+    id: 'sec-user',
+    index: 2,
+    label: 'User Defined',
+    children: [
+      {
+        id: 'settingNodes',
+        type: 'settingNodes',
+        index: 0,
+        label: 'Nodes Settings',
+        children: [],
+      },
+    ],
+  },
+];
+
+const userInfo: UserInfo = {
+  id: '0e24e70d-8d64-4ef8-8ce7-8d160cae8472',
+  user_id: 'OPUSADM',
+  user_name: 'OPUSADM',
+  roles: ['guest'],
+  unuse_form_elements: [],
+  unuse_nodes: [],
+  node_colors: defaultColors,
+};
+
 export type StoreState = {
   backend: BackendKind;
+
+  userInfoJson: UserInfo;
+  setUserInfoJson: (userInfo: UserInfo) => void;
+  loadingUserData: () => Promise<UserInfo>;
+  treeNodes: TreeItem[];
+  loadTreeNodes: () => void;
 
   nodes: Node<any>[];
   edges: Edge<any>[];
@@ -293,6 +379,63 @@ const shouldRecordEdgeChanges = (changes: EdgeChange[]) =>
 
 const useBuilderStore = create<StoreState>((set, get) => ({
   backend: 'firebase',
+
+  treeNodes: [],
+
+  userInfoJson: userInfo,
+  setUserInfoJson: (userInfo: UserInfo) => set({ userInfoJson: userInfo }),
+  loadingUserData: async () => {
+    // TODO: 추후 API 전환
+    // const res = await apiClient.get<ElementTypeItem[]>('/chat/user-info');
+    // const userInfo = res.data;
+    try {
+      const currentUserInfo: UserInfo = get().userInfoJson;
+
+      const nextRoles =
+        currentUserInfo.id === '0e24e70d-8d64-4ef8-8ce7-8d160cae8472' &&
+        !currentUserInfo.roles.includes('admin')
+          ? [...currentUserInfo.roles, 'admin']
+          : currentUserInfo.roles;
+
+      const nodeColors = {
+        ...defaultColors,
+        ...(currentUserInfo.node_colors ?? {}),
+      };
+
+      const userInfo: UserInfo = {
+        ...currentUserInfo,
+        roles: nextRoles,
+        node_colors: nodeColors,
+      };
+
+      set({
+        userInfoJson: userInfo,
+        nodeColors,
+      });
+
+      return userInfo;
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      throw error;
+    }
+  },
+  loadTreeNodes: async () => {
+    try {
+      // TODO: API 명세 확정 후 엔드포인트 및 데이터 구조에 맞게 수정 필요
+
+      const userInfo = await get().loadingUserData();
+      const filteredTreeData = MOCK_UP_TREE_DATA.map((section) => ({
+        ...section,
+        // children 배열 내에서 unuseNodes에 id가 포함되지 않은 것만 남김
+        children: section.children.filter(
+          (child) => !userInfo.unuse_nodes.includes(child.id),
+        ),
+      }));
+      set({ treeNodes: filteredTreeData });
+    } catch (error) {
+      console.error('Error loading tree nodes:', error);
+    }
+  },
 
   nodes: [],
   edges: [],
@@ -986,6 +1129,7 @@ const useBuilderStore = create<StoreState>((set, get) => ({
   saveScenario: async (backend, scenario) => {
     try {
       const { nodes, edges, startNodeId } = get();
+      console.log("nodes: ", nodes);
       await backendService.saveScenarioData(backend, {
         scenario,
         data: {

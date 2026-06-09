@@ -110,6 +110,18 @@ type ContextMenuState = {
   target: any;
 };
 
+type ExecutionFormElement = {
+  id?: string;
+  name?: string;
+  type?: string;
+  label?: string;
+  placeholder?: string;
+  options?: Array<string | { label?: string; value?: string }>;
+  rows?: number;
+  columns?: number;
+  data?: string[];
+};
+
 const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
   const router = useRouter();
   const { showAlert, showConfirm } = useModal();
@@ -189,10 +201,47 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
     executionRunning,
     selectBranchReply,
     cancelBranchReplySelection,
+    submitFormInput,
+    cancelFormInput,
   } = useBuilderExecution({ nodes, edges } as any);
 
   const pendingBranchSelection = builderExecutionStore(
     (state) => state.pendingBranchSelection
+  );
+  const pendingFormInput = builderExecutionStore(
+    (state) => state.pendingFormInput
+  );
+  const [executionFormValues, setExecutionFormValues] = useState<Record<string, unknown>>({});
+
+  useEffect(() => {
+    if (!pendingFormInput) {
+      setExecutionFormValues({});
+      return;
+    }
+
+    setExecutionFormValues(pendingFormInput.initialValues ?? {});
+  }, [pendingFormInput]);
+
+  const updateExecutionFormValue = useCallback((name: string, value: unknown) => {
+    setExecutionFormValues((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }, []);
+
+  const updateExecutionFormCheckbox = useCallback(
+    (name: string, value: string, checked: boolean) => {
+      setExecutionFormValues((prev) => {
+        const current = Array.isArray(prev[name]) ? prev[name] : [];
+        return {
+          ...prev,
+          [name]: checked
+            ? [...current, value]
+            : current.filter((item) => item !== value),
+        };
+      });
+    },
+    []
   );
 
   const executionLogs = builderExecutionStore((state) => state.executionLogs);
@@ -1280,7 +1329,10 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
                   <button
                     type="button"
                     title="Run from Start to Anchor"
-                    onClick={() => runBetweenStartAndAnchor()}
+                    onClick={() => {
+                      setIsSlotDisplayVisible(true);
+                      runBetweenStartAndAnchor();
+                    }}
                     className={`${styles.toolButton} ${executionRunning ? styles.toolButtonActive : ""}`}
                     disabled={executionRunning}
                   >
@@ -1771,6 +1823,175 @@ const Flow = ({ scenario, backend, scenarios, onClose }: any) => {
               className="rounded-md border border-gray-200 px-3 py-2 text-sm"
             >
               취소
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* play form input modal */}
+      <div
+        className={`${
+          pendingFormInput ? "flex" : "hidden"
+        } fixed inset-0 z-50 items-center justify-center bg-black/40`}
+      >
+        <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+          <div className="mb-2 text-lg font-semibold">
+            {pendingFormInput?.title || "Form input"}
+          </div>
+
+          <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto py-2">
+            {(pendingFormInput?.elements as ExecutionFormElement[] | undefined)
+              ?.map((element, elementIndex) => {
+                const elementKey = element.name || element.id || `element-${elementIndex}`;
+                const elementLabel = element.label || element.name || element.type || "Form Element";
+                const value = executionFormValues[elementKey];
+
+                if (element.type === "grid") {
+                  const rows = element.rows || 2;
+                  const columns = element.columns || 2;
+
+                  return (
+                    <div key={elementKey} className="flex flex-col gap-1">
+                      <div className="text-sm font-medium">{elementLabel}</div>
+                      <div className="overflow-x-auto rounded-md border border-gray-200">
+                        <table className="w-full border-collapse text-sm">
+                          <tbody>
+                            {Array.from({ length: rows }).map((_, rowIndex) => (
+                              <tr key={`${elementKey}-row-${rowIndex}`}>
+                                {Array.from({ length: columns }).map((_, colIndex) => {
+                                  const cellIndex = rowIndex * columns + colIndex;
+                                  const cellValue = element.data?.[cellIndex] ?? "";
+
+                                  return (
+                                    <td
+                                      key={`${elementKey}-cell-${cellIndex}`}
+                                      className="border border-gray-200 px-3 py-2"
+                                    >
+                                      {cellValue}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (element.type === "checkbox") {
+                  const options = element.options || [];
+                  const checkedValues = Array.isArray(value) ? value : [];
+
+                  return (
+                    <div key={elementKey} className="flex flex-col gap-2">
+                      <div className="text-sm font-medium">
+                        {elementLabel}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {options.length === 0 ? (
+                          <div className="rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-500">
+                            No options
+                          </div>
+                        ) : null}
+                        {options.map((option, index: number) => {
+                          const optionValue =
+                            String(typeof option === "object" ? option.value ?? "" : option);
+                          const optionLabel =
+                            typeof option === "object" ? option.label ?? optionValue : option;
+
+                          return (
+                            <label
+                              key={`${elementKey}-${optionValue ?? index}`}
+                              className="flex items-center gap-2 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checkedValues.includes(optionValue)}
+                                onChange={(event) =>
+                                  updateExecutionFormCheckbox(
+                                    elementKey,
+                                    optionValue,
+                                    event.target.checked
+                                  )
+                                }
+                              />
+                              <span>{optionLabel}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (element.type === "dropbox") {
+                  const options = element.options || [];
+
+                  return (
+                    <label key={elementKey} className="flex flex-col gap-1">
+                      <span className="text-sm font-medium">
+                        {elementLabel}
+                      </span>
+                      <select
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        value={String(value ?? "")}
+                        onChange={(event) =>
+                          updateExecutionFormValue(elementKey, event.target.value)
+                        }
+                      >
+                        <option value="">Select</option>
+                        {options.map((option, index: number) => {
+                          const optionValue =
+                            String(typeof option === "object" ? option.value ?? "" : option);
+                          const optionLabel =
+                            typeof option === "object" ? option.label ?? optionValue : option;
+
+                          return (
+                            <option key={`${optionValue ?? index}`} value={optionValue}>
+                              {optionLabel}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                  );
+                }
+
+                return (
+                  <label key={elementKey} className="flex flex-col gap-1">
+                    <span className="text-sm font-medium">
+                      {elementLabel}
+                    </span>
+                    <input
+                      type={element.type === "date" ? "date" : "text"}
+                      className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      value={String(value ?? "")}
+                      placeholder={element.placeholder || ""}
+                      onChange={(event) =>
+                        updateExecutionFormValue(elementKey, event.target.value)
+                      }
+                    />
+                  </label>
+                );
+              })}
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={cancelFormInput}
+              className="rounded-md border border-gray-200 px-3 py-2 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => submitFormInput(executionFormValues)}
+              className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
+            >
+              Submit
             </button>
           </div>
         </div>

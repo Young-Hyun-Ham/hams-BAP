@@ -15,7 +15,7 @@ export type ExecutionLog = {
   nodeId?: string;
   nodeType?: string;
   message?: string;
-  payload?: any;
+  payload?: unknown;
 };
 
 type StartExecutionMeta = {
@@ -25,7 +25,7 @@ type StartExecutionMeta = {
 
 type MarkCompletedMeta = {
   nodeType?: string;
-  payload?: any;
+  payload?: unknown;
 };
 
 // 20260317 - 플레이시 branch 노드는 모달 팝업으로 선택 시 까지 pending 효과
@@ -39,6 +39,15 @@ type PendingBranchSelection = {
   nodeType: string;
   title?: string;
   replies: PendingBranchReply[];
+} | null;
+
+type PendingFormInput = {
+  nodeId: string;
+  nodeType: string;
+  title?: string;
+  slotKey?: string;
+  elements: unknown[];
+  initialValues: Record<string, unknown>;
 } | null;
 
 type BuilderExecutionStore = {
@@ -63,6 +72,10 @@ type BuilderExecutionStore = {
   pendingBranchSelection: PendingBranchSelection;
   openBranchSelection: (payload: PendingBranchSelection) => void;
   closeBranchSelection: () => void;
+
+  pendingFormInput: PendingFormInput;
+  openFormInput: (payload: PendingFormInput) => void;
+  closeFormInput: () => void;
 };
 
 const now = () => new Date().toISOString();
@@ -76,6 +89,8 @@ const initialState = {
   executionStartedAt: null as string | null,
   executionEndedAt: null as string | null,
   executionError: null as string | null,
+  pendingBranchSelection: null as PendingBranchSelection,
+  pendingFormInput: null as PendingFormInput,
 };
 
 export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
@@ -173,8 +188,6 @@ export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
       ],
     })),
 
-  pendingBranchSelection: null,
-
   openBranchSelection: (payload) =>
     set({
       pendingBranchSelection: payload,
@@ -183,6 +196,16 @@ export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
   closeBranchSelection: () =>
     set({
       pendingBranchSelection: null,
+    }),
+
+  openFormInput: (payload) =>
+    set({
+      pendingFormInput: payload,
+    }),
+
+  closeFormInput: () =>
+    set({
+      pendingFormInput: null,
     }),
 
 }));
