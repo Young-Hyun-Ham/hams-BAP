@@ -190,7 +190,7 @@ function ModalRoot({ dialog, onResolve }: { dialog?: DialogItem; onResolve: (v?:
       aria-modal
       role="dialog"
       aria-labelledby="modal-title"
-      className="fixed inset-0 z-[1000] flex items-center justify-center"
+      className="fixed inset-0 z-[1500] flex items-center justify-center"
     >
       {/* Overlay */}
       <div

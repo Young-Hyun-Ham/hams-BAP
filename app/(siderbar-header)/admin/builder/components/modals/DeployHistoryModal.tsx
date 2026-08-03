@@ -1,4 +1,6 @@
 'use client';
+import '@/lib/grid/ag-grid';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Modal, Typography } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
@@ -6,10 +8,7 @@ import { ColDef } from 'ag-grid-community';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
-import {
-  getScenarioDeployHistory,
-  getScenarioVersions,
-} from '../../services/fastApi';
+import { getScenarioDeployHistory } from '../../services/backendService';
 import { useBuilderStore } from '../../store';
 
 import { AppLoadingOverlay } from '@/components/common/AppLoadingOverlay';
@@ -34,7 +33,7 @@ const DeployHistoryListModal = ({
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
   const { showAlert} = useModal();
-  const { scenario } = useBuilderStore() as any;
+  const { backend, scenario } = useBuilderStore() as any;
   const [paginationModel, setPaginationModel] = useState({
     page: 1,
     pageSize: 50,
@@ -52,9 +51,12 @@ const DeployHistoryListModal = ({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
       };
-      const res: any = await getScenarioDeployHistory(payload);
-      setRowData(res || []);
-      setTotalCount(res.length || 0);
+      const res: any = await getScenarioDeployHistory(backend, payload);
+      const items = Array.isArray(res) ? res : (res?.items ?? []);
+      setRowData(items);
+      setTotalCount(
+        Array.isArray(res) ? res.length : (res?.totalCount ?? items.length),
+      );
     } catch (error) {
       showAlert(t('Failed to load Deploy History list.'));
     } finally {
@@ -63,10 +65,12 @@ const DeployHistoryListModal = ({
   };
 
   useEffect(() => {
+    if (!isOpen || !scenario?.id) return;
     void Promise.resolve().then(() => fetchDeployHistory(currentValues));
-  }, []);
+  }, [isOpen, scenario?.id]);
 
   useEffect(() => {
+    if (!isOpen || !scenario?.id) return;
     if (prevPaginationRef.current === paginationModel) {
       return;
     }
@@ -161,6 +165,7 @@ const DeployHistoryListModal = ({
           >
             <AgGridReact
               {...defaultGridOptions}
+              enableRowPinning={false}
               context={{ highlightReadOnly: false }}
               rowData={rowData}
               columnDefs={columnDefs}

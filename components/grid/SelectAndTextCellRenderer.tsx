@@ -12,8 +12,8 @@ import { SearchIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useDebounce } from '@/hooks/useDebounce';
-import useCommonUdcs from '@/hooks/useBizDatas';
+// import { useDebounce } from './hooks/useDebounce';
+// import useCommonUdcs from './hooks/useBizDatas';
 
 export default function SelectAndTextCellRenderer(params: ICellRendererParams) {
   const { value, node, api, data } = params;
@@ -21,25 +21,6 @@ export default function SelectAndTextCellRenderer(params: ICellRendererParams) {
   const currentText = value?.text || '';
   const [inputValue, setInputValue] = useState('');
   const { t } = useTranslation();
-
-  const { bizDatas, isLoading, searchDatas, clearDatas } = useCommonUdcs({
-    bizKey: 'word_data',
-  });
-  const debouncedSearchTerm = useDebounce(inputValue, 500);
-
-  useEffect(() => {
-    if (!debouncedSearchTerm || debouncedSearchTerm.trim().length < 2) {
-      clearDatas();
-      return;
-    }
-    searchDatas({
-      bizType: 'udcKeyCombo',
-      bizKey: 'word_data',
-      biz01: debouncedSearchTerm,
-    }).catch((error: any) => {
-      console.error('Search failed:', error);
-    });
-  }, [debouncedSearchTerm, searchDatas, clearDatas]);
 
   const handleChangeSelect = async (event: any) => {
     const newId = event.target.value;
@@ -158,7 +139,7 @@ export default function SelectAndTextCellRenderer(params: ICellRendererParams) {
             },
           },
         }}
-        options={bizDatas}
+        options={[]}
         getOptionLabel={(option: any) => {
           if (typeof option === 'string') return option;
           return option.value02 || '';
@@ -219,7 +200,7 @@ export default function SelectAndTextCellRenderer(params: ICellRendererParams) {
             }
           }
         }}
-        loading={isLoading}
+        // loading={isLoading}
         renderInput={(params) => (
           <TextField
             {...params}
@@ -244,9 +225,9 @@ export default function SelectAndTextCellRenderer(params: ICellRendererParams) {
               ),
               endAdornment: (
                 <>
-                  {isLoading ? (
+                  {/* {isLoading ? (
                     <CircularProgress color="inherit" size={16} />
-                  ) : null}
+                  ) : null} */}
                   {params.InputProps.endAdornment}
                 </>
               ),

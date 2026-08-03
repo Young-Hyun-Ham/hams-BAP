@@ -34,6 +34,16 @@ export const cloneScenario = (backend: any, args: any) =>
   getService(backend).cloneScenario(args);
 export const updateScenarioLastUsed = (backend: any, args: any) =>
   getService(backend).updateScenarioLastUsed(args);
+export const getScenarioVersions = (backend: any, args: any) =>
+  getService(backend).getScenarioVersions(args);
+export const getScenarioVersion = (backend: any, args: any) =>
+  getService(backend).getScenarioVersion(args);
+export const getScenarioDeployHistory = (backend: any, args: any) =>
+  getService(backend).getScenarioDeployHistory(args);
+export const restoreScenarioVersion = (backend: any, args: any) =>
+  getService(backend).restoreScenarioVersion(args);
+export const scenarioVersionDeploy = (backend: any, args: any) =>
+  getService(backend).scenarioVersionDeploy(args);
 
 export const fetchApiTemplates = (backend: any, args: any) =>
   getService(backend).fetchApiTemplates(args);

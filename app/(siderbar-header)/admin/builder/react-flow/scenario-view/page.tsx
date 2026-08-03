@@ -103,14 +103,14 @@ import LogPreview from '../../components/modals/LogPreview';
 import { Scenario, TreeItem } from '../../types/types';
 import {
   getScenarioVersion,
+  restoreScenarioVersion,
   scenarioVersionDeploy,
-} from '../../services/fastApi';
+} from '../../services/backendService';
 import DeployHistoryListModal from '../../components/modals/DeployHistoryModal';
 
 import type { Edge, Node } from 'reactflow';
 
 import { useModal } from '@/providers/ModalProvider';
-import { Chip } from '@/components/common/Chip';
 import { COLORS } from '@/lib/constants/color';
 
 const nodeTypes = {
@@ -177,6 +177,8 @@ const Flow = ({ scenario, scenarios }: any) => {
   const { showAlert, showConfirm } = useModal();
   const router = useRouter();
   const {
+    backend,
+    userInfoJson,
     nodes,
     edges,
     onNodesChange,
@@ -246,7 +248,7 @@ const Flow = ({ scenario, scenarios }: any) => {
           version_id: scenario.ltst_ver_id,
         };
         // console.log("===========================> detail 조회: ", scenario)
-        const res: any = await getScenarioVersion(payload);
+        const res: any = await getScenarioVersion(backend, payload);
         setSelectedVersionId(scenario.ltst_ver_id);
         setNodes(res.nodes || []);
         setEdges(res.edges || []);
@@ -851,7 +853,7 @@ const Flow = ({ scenario, scenarios }: any) => {
       scenario_id: scenario.id,
       version_id: history.ver_id,
     };
-    getScenarioVersion(payload).then((res: any) => {
+    getScenarioVersion(backend, payload).then((res: any) => {
       setNodes(res.nodes || []);
       setEdges(res.edges || []);
       setStartNodeId(res.start_node_id || null);
@@ -890,15 +892,18 @@ const Flow = ({ scenario, scenarios }: any) => {
       ver_id: selectedVersionId ?? scenario.ltst_ver_id,
       memo: '',
     };
-    const res = await scenarioVersionDeploy(payload);
+    await scenarioVersionDeploy(backend, {
+      ...payload,
+      depn_usr_id: userInfoJson?.user_id ?? '',
+    });
     setSelectedVersionId(null);
     setSelectedVersion(null);
-    router.push(`/builder/react-flow/scenario-list`);
+    router.push(`/admin/builder/react-flow/scenario-list`);
   };
 
   const handleMoveScenario = async (data?: Scenario) => {
     const confirmed = await showConfirm(
-      'Do you want to move to the scenario detail page?',
+      'Do you want to restore the selected version and open the scenario editor?',
     );
     if (!confirmed) return;
 
@@ -907,18 +912,22 @@ const Flow = ({ scenario, scenarios }: any) => {
       setSelectedVersion(null);
       // setScenario(null);
 
+      const versionId = selectedVersionId ?? data.ltst_ver_id;
       const payload = {
         scenario_id: data.id,
-        version_id: selectedVersionId ?? data.ltst_ver_id,
+        version_id: versionId,
       };
-      getScenarioVersion(payload).then(async (res: any) => {
-        // console.log('==============================> res data', res);
-        // setScenario(res)
-        await setNodes(res.nodes || []);
-        await setEdges(res.edges || []);
-        await setStartNodeId(res.start_node_id || null);
+      const restoredScenario = await restoreScenarioVersion(backend, payload);
+      setScenario({
+        ...data,
+        ...restoredScenario,
+        id: data.id,
       });
-      router.push(`/builder/react-flow/scenario-flow`);
+      setNodes(restoredScenario.nodes ?? []);
+      setEdges(restoredScenario.edges ?? []);
+      setStartNodeId(restoredScenario.startNodeId ?? null);
+      setSelectedVersionId(null);
+      router.push(`/admin/builder/react-flow/scenario-flow`);
     }
   };
 

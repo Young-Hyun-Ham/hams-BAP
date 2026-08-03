@@ -306,7 +306,12 @@ export type StoreState = {
     id: string;
     name: string;
     version_yn?: boolean;
-  }) => Promise<void>;
+  }) => Promise<{
+    id: string;
+    version_yn: boolean;
+    latestVersion?: number;
+    ltst_ver_id?: number;
+  } | void>;
   createScenario: (scenario: Scenario) => Promise<void>;
   patchScenario: (scenario: Scenario) => Promise<void>;
   deleteScenario: (scenarioId: string[]) => void;
@@ -1204,10 +1209,9 @@ export const useBuilderStore = create<StoreState>((set, get) => ({
     }
   },
   fetchScenario: async (scenarioId) => {
-    console.log("여기와야지? ===>", scenarioId)
     try {
       const data = await fetchScenarioData(get().backend, { scenarioId });
-    console.log("fetch data ===>", data)
+      // console.log("fetch data ===>", data)
       const loadedNodes = (data.nodes ?? []) as Node<any>[];
       const rawEdges = (data.edges ?? []) as Edge<any>[];
       const cleanEdges = sanitizeEdgesForSave(rawEdges, loadedNodes);
@@ -1230,7 +1234,7 @@ export const useBuilderStore = create<StoreState>((set, get) => ({
     try {
       const { nodes, edges, startNodeId } = get();
       // console.log('Saving scenario with nodes:', nodes);
-      await saveScenarioData(get().backend, {
+      const res = await saveScenarioData(get().backend, {
         scenario,
         data: {
           nodes: sanitizeNodesForSave(nodes),
@@ -1238,12 +1242,25 @@ export const useBuilderStore = create<StoreState>((set, get) => ({
           startNodeId,
         },
       });
+
+      if (res?.ltst_ver_id !== undefined) {
+        set({
+          scenario: {
+            ...scenario,
+            ...res,
+            version_yn: false,
+          },
+        });
+      }
+
       alert(
         `Scenario '${scenario.name}' has been ${scenario.version_yn ? 'versioned' : 'saved'} successfully!`,
       );
+      return res;
     } catch (e: any) {
       console.error('Error saving scenario:', e);
       alert(`Failed to save scenario: ${e?.message ?? 'unknown error'}`);
+      throw e;
     }
   },
 
@@ -1255,6 +1272,7 @@ export const useBuilderStore = create<StoreState>((set, get) => ({
     } catch (e: any) {
       console.error('Error saving scenario:', e);
       alert(`Failed to save scenario: ${e?.message ?? 'unknown error'}`);
+      throw e;
     }
   },
 
@@ -1267,6 +1285,7 @@ export const useBuilderStore = create<StoreState>((set, get) => ({
     } catch (e: any) {
       console.error('Error saving scenario:', e);
       alert(`Failed to save scenario: ${e?.message ?? 'unknown error'}`);
+      throw e;
     }
   },
 

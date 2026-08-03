@@ -336,8 +336,11 @@ const ScenarioList = () => {
         setSelectedScenarioId(res.id ?? '');
       }
     }
-    onSubmit(getSearchValues(), true);
-    showAlert('저장되었습니다',);
+    setSelectedScenario(false);
+    setSelectedScenarioId('');
+    setMode(null);
+    onSubmit(getSearchValues());
+    await showAlert('저장되었습니다.');
   };
 
   const handleDataChange = (type: string, data: string) => {

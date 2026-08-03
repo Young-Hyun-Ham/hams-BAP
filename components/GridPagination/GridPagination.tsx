@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
-import { COLORS } from '@/lib/theme';
+import { COLORS } from '@/lib/constants/color';
 
 export interface GridPaginationProps {
   /** Current page number (1-based) */

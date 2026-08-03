@@ -146,7 +146,7 @@ function ApiCallEditor({ apiCall, onUpdate, onDelete, onTest, isTesting }) {
 }
 
 function ApiNodeController({ localNode, setLocalNode, backend }) {
-  const { showAlert, showConfirm } = useAlert();
+  const { showAlert, showConfirm } = useModal();
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [apiTemplates, setApiTemplates] = useState([]);
   const [selectedApiCallId, setSelectedApiCallId] = useState(null);

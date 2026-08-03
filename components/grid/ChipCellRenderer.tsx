@@ -4,7 +4,7 @@ import CircleIcon from '@mui/icons-material/Circle';
 import CloseIcon from '@mui/icons-material/Close';
 import BuildIcon from '@mui/icons-material/Build';
 
-import { COLORS } from '@/lib/theme';
+import { COLORS } from '@/lib/constants/color';
 
 interface ChipConfig {
   column?: string;

@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 import VersionsTree from './VersionsTree';
 import { TreeItem, VersionTreeItem } from '../types/types';
-import { getScenarioVersions } from '../services/fastApi';
+import { getScenarioVersions } from '../services/backendService';
 import { useBuilderStore } from '../store';
 
 import { COLORS } from '@/lib/constants/color';
@@ -55,7 +55,7 @@ function VersionsTreeUI({ props, versions }: any) {
   const [treeData, setTreeData] =
     useState<VersionTreeItem[]>(MOCK_UP_TREE_DATA);
 
-  const { scenario } = useBuilderStore() as any;
+  const { backend, scenario } = useBuilderStore() as any;
 
   const [isDragMode, setIsDragMode] = useState(true);
   const [isUserCollapsed, setIsUserCollapsed] = useState(false);
@@ -64,13 +64,13 @@ function VersionsTreeUI({ props, versions }: any) {
   useEffect(() => {
     const loadVersions = async () => {
       try {
-        const data: any = await getScenarioVersions({
+        const data: any = await getScenarioVersions(backend, {
           scenario_id: scenario.id,
         });
         console.log('VersionsTreeUI - loadVersions - data: ', data);
         // const versionList = Array.isArray(data) ? data : data?.version_list ?? [];
 
-        const versionChildren: any = data?.version_list.map(
+        const versionChildren: any = (data?.version_list ?? []).map(
           (item: any, index: number) => ({
             id: item.snro_id + ':' + item.ver_id + ':' + item.depn_yn,
             snro_id: item.snro_id,
@@ -96,7 +96,7 @@ function VersionsTreeUI({ props, versions }: any) {
     };
 
     loadVersions();
-  }, []);
+  }, [backend, scenario.id, showAlert, t]);
 
   return (
     <Box
@@ -129,7 +129,7 @@ function VersionsTreeUI({ props, versions }: any) {
           }
           onClick={() => setIsUserCollapsed((prev) => !prev)}
         >
-          {isMenuCollapsed ? <LeftPanelOpenIcon /> : <LeftPanelCloseIcon />}
+          {/* {isMenuCollapsed ? <LeftPanelOpenIcon /> : <LeftPanelCloseIcon />} */}
         </IconButton>
         <Typography
           fontSize={14}

@@ -7,7 +7,7 @@ import { Box } from '@mui/material';
 import { TreeItem, VersionTreeItem } from '../types/types';
 import { useBuilderStore } from '../store/index';
 import ScenarioGroupModal from './modals/ScenarioGroupModal';
-import { getScenarioVersion } from '../services/fastApi';
+import { getScenarioVersion } from '../services/backendService';
 
 type Props = {
   data: VersionTreeItem[];
@@ -34,7 +34,8 @@ export default function VersionsTree({ data, isDragMode }: Props) {
   // scenario group node 추가
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
 
-  const { scenario, scenarios, fetchScenarioData } = useBuilderStore() as any;
+  const { backend, scenario, scenarios, fetchScenarioData } =
+    useBuilderStore() as any;
 
   const addNodeEvent = async (
     e: React.MouseEvent<HTMLDivElement> | React.DragEvent<HTMLDivElement>,
@@ -61,7 +62,7 @@ export default function VersionsTree({ data, isDragMode }: Props) {
             scenario_id: item.snro_id,
             version_id: item.ver_id,
           };
-          const data: any = await getScenarioVersion(payload);
+          const data: any = await getScenarioVersion(backend, payload);
           setSelectedVersionId(item.ver_id);
           setNodes(data.nodes || []);
           setEdges(data.edges || []);
