@@ -1,6 +1,20 @@
 // app/(siderbar-header)/admin/builder/components/modals/LogPreview.tsx
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from 'react';
+import {
+  Box,
+  Button,
+  Stack,
+  Typography,
+  IconButton,
+  Tooltip,
+  Divider,
+} from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import UndoIcon from '@mui/icons-material/Undo';
+import RedoIcon from '@mui/icons-material/Redo';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import { useTranslation } from 'react-i18next';
 
 type LogPreviewProps = {
   nodes: any[];
@@ -9,228 +23,218 @@ type LogPreviewProps = {
   setEdges: (edges: any[]) => void;
 };
 
-const LogPreview = ({
-  nodes, 
-  edges, 
-  setNodes, 
-  setEdges,
-}: LogPreviewProps) => {
+const LogPreview = ({ nodes, edges, setNodes, setEdges }: LogPreviewProps) => {
+  const { t } = useTranslation();
+  const [nodesJsonText, setNodesJsonText] = useState(() =>
+    JSON.stringify(nodes, null, 2),
+  );
+  const [edgesJsonText, setEdgesJsonText] = useState(() =>
+    JSON.stringify(edges, null, 2),
+  );
 
-  // 🔹 텍스트 영역: 초기값은 현재 그래프 상태로 한 번만 세팅
-  const [nodesJsonText, setNodesJsonText] = useState("[]");
-  const [edgesJsonText, setEdgesJsonText] = useState("[]");
-
-  useEffect(() => {
-    setNodesJsonText(JSON.stringify(nodes, null, 2));
-    setEdgesJsonText(JSON.stringify(edges, null, 2));
-  }, []);
-
-  // 🔹 Undo / Redo용 히스토리 (스냅샷들을 deep copy로 저장)
-  const [history, setHistory] = useState<{ nodes: any[]; edges: any[] }[]>(() => [
-    {
-      nodes: JSON.parse(JSON.stringify(nodes)),
-      edges: JSON.parse(JSON.stringify(edges)),
-    },
-  ]);
+  // Undo / Redo용 히스토리
+  const [history, setHistory] = useState<{ nodes: any[]; edges: any[] }[]>(
+    () => [
+      {
+        nodes: JSON.parse(JSON.stringify(nodes)),
+        edges: JSON.parse(JSON.stringify(edges)),
+      },
+    ],
+  );
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  const nodesTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const edgesTextareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // 🔹 nodes textarea 자동 높이
-  useEffect(() => {
-    if (nodesTextareaRef.current) {
-      nodesTextareaRef.current.style.height = "auto";
-      nodesTextareaRef.current.style.height =
-        nodesTextareaRef.current.scrollHeight + "px";
-    }
-  }, [nodesJsonText]);
-
-  // 🔹 edges textarea 자동 높이
-  useEffect(() => {
-    if (edgesTextareaRef.current) {
-      edgesTextareaRef.current.style.height = "auto";
-      edgesTextareaRef.current.style.height =
-        edgesTextareaRef.current.scrollHeight + "px";
-    }
-  }, [edgesJsonText]);
-
-  // 🔹 현재 Flow 상태를 다시 가져와 텍스트에 반영 (수동 Sync)
   const handleReloadFromFlow = () => {
-    const newNodesJson = JSON.stringify(nodes, null, 2);
-    const newEdgesJson = JSON.stringify(edges, null, 2);
-
-    setNodesJsonText(newNodesJson);
-    setEdgesJsonText(newEdgesJson);
+    setNodesJsonText(JSON.stringify(nodes, null, 2));
+    setEdgesJsonText(JSON.stringify(edges, null, 2));
   };
 
-  // 🔹 Undo
   const handleUndo = () => {
     if (historyIndex <= 0) return;
-
     const newIdx = historyIndex - 1;
     const snapshot = history[newIdx];
-
-    setNodes(snapshot.nodes);
-    setEdges(snapshot.edges);
-
-    setNodesJsonText(JSON.stringify(snapshot.nodes, null, 2));
-    setEdgesJsonText(JSON.stringify(snapshot.edges, null, 2));
-
-    setHistoryIndex(newIdx);
+    applySnapshot(snapshot, newIdx);
   };
 
-  // 🔹 Redo
   const handleRedo = () => {
     if (historyIndex < 0 || historyIndex >= history.length - 1) return;
-
     const newIdx = historyIndex + 1;
     const snapshot = history[newIdx];
-
-    setNodes(snapshot.nodes);
-    setEdges(snapshot.edges);
-
-    setNodesJsonText(JSON.stringify(snapshot.nodes, null, 2));
-    setEdgesJsonText(JSON.stringify(snapshot.edges, null, 2));
-
-    setHistoryIndex(newIdx);
+    applySnapshot(snapshot, newIdx);
   };
 
-  // 🔹 JSON 적용 버튼
+  const applySnapshot = (snapshot: any, index: number) => {
+    setNodes(snapshot.nodes);
+    setEdges(snapshot.edges);
+    setNodesJsonText(JSON.stringify(snapshot.nodes, null, 2));
+    setEdgesJsonText(JSON.stringify(snapshot.edges, null, 2));
+    setHistoryIndex(index);
+  };
+
   const handleApplyJson = () => {
     try {
-      const parsedNodes = nodesJsonText.trim()
-        ? JSON.parse(nodesJsonText)
-        : [];
-      const parsedEdges = edgesJsonText.trim()
-        ? JSON.parse(edgesJsonText)
-        : [];
+      const parsedNodes = JSON.parse(nodesJsonText);
+      const parsedEdges = JSON.parse(edgesJsonText);
 
-      if (!Array.isArray(parsedNodes)) {
-        alert(
-          'nodes JSON은 배열 형태여야 합니다. (예: [ { ...node... }, ... ])'
-        );
-        return;
-      }
-      if (!Array.isArray(parsedEdges)) {
-        alert(
-          'edges JSON은 배열 형태여야 합니다. (예: [ { ...edge... }, ... ])'
-        );
+      if (!Array.isArray(parsedNodes) || !Array.isArray(parsedEdges)) {
+        //alert('Nodes와 Edges는 모두 배열 형태여야 합니다.');
+        alert(`${t('Nodes and Edges must both be in array form')}.`);
         return;
       }
 
-      // ✅ 현재 그래프 상태를 히스토리에 저장 (Undo 가능하게)
       setHistory((prev) => {
-        const sliced = prev.slice(0, historyIndex + 1); // Redo 분기 날리기
-        const currentSnapshot = {
-          nodes: JSON.parse(JSON.stringify(nodes)),
-          edges: JSON.parse(JSON.stringify(edges)),
-        };
-        return [...sliced, currentSnapshot];
+        const sliced = prev.slice(0, historyIndex + 1);
+        return [...sliced, { nodes: parsedNodes, edges: parsedEdges }];
       });
       setHistoryIndex((idx) => idx + 1);
 
-      // ✅ JSON을 실제 그래프에 반영
-      setNodes(parsedNodes as any[]);
-      setEdges(parsedEdges as any[]);
-
-      alert("Flow UI가 성공적으로 갱신되었습니다.");
+      setNodes(parsedNodes);
+      setEdges(parsedEdges);
+      // alert('Flow UI가 성공적으로 갱신되었습니다.');
+      alert(`${t('Flow UI updated successfully')}.`);
     } catch (err) {
-      console.error(err);
-      alert("유효하지 않은 JSON 형식입니다.");
+      // alert('유효하지 않은 JSON 형식입니다.');
+      alert(`${t('Invalid JSON format')}.`);
     }
   };
 
   const canUndo = historyIndex > 0;
-  const canRedo = historyIndex >= 0 && historyIndex < history.length - 1;
+  const canRedo = history.length > 1 && historyIndex < history.length - 1;
+
+  // 공통 텍스트에디터 스타일
+  const textAreaStyle = {
+    width: '100%',
+    padding: '12px',
+    fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
+    fontSize: '12px',
+    lineHeight: '1.5',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    outline: 'none',
+    resize: 'vertical' as const,
+    minHeight: '150px',
+    maxHeight: '300px',
+    '&:focus': {
+      borderColor: '#3b82f6',
+      backgroundColor: '#ffffff',
+    },
+  };
 
   return (
-    <div className="max-h-[60vh] overflow-y-auto">
-      <h2 className="text-base font-bold mb-3">Log</h2>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* 상단 컨트롤바 */}
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ bgcolor: '#f1f5f9', p: 1.5, borderRadius: 2 }}
+      >
+        <Typography
+          variant="subtitle2"
+          color="text.secondary"
+          fontWeight="bold"
+        >
+          {t('DB JSON Editor')}
+        </Typography>
 
-      {/* Header + 버튼 영역 */}
-      <div className="flex flex-wrap gap-2 items-center justify-between text-xs mb-2">
-        <span className="font-semibold">db json data</span>
-        <div className="flex gap-2">
-          <button
-            onClick={handleReloadFromFlow}
-            className="px-3 py-1 border rounded text-xs hover:bg-gray-100"
-          >
-            그래프에서 다시 불러오기
-          </button>
-          <button
-            onClick={handleUndo}
-            disabled={!canUndo}
-            className={`px-3 py-1 rounded text-xs ${
-              canUndo
-                ? "border hover:bg-gray-100"
-                : "border border-gray-200 text-gray-300 cursor-not-allowed"
-            }`}
-          >
-            Undo
-          </button>
-          <button
-            onClick={handleRedo}
-            disabled={!canRedo}
-            className={`px-3 py-1 rounded text-xs ${
-              canRedo
-                ? "border hover:bg-gray-100"
-                : "border border-gray-200 text-gray-300 cursor-not-allowed"
-            }`}
-          >
-            Redo
-          </button>
-          <button
+        <Stack direction="row" spacing={1}>
+          <Tooltip title={t('Import data back from graph')}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleReloadFromFlow}
+            >
+              {t('Sync')}
+            </Button>
+          </Tooltip>
+
+          <Divider orientation="vertical" flexItem />
+
+          <IconButton size="small" onClick={handleUndo} disabled={!canUndo}>
+            <UndoIcon fontSize="small" />
+          </IconButton>
+
+          <IconButton size="small" onClick={handleRedo} disabled={!canRedo}>
+            <RedoIcon fontSize="small" />
+          </IconButton>
+
+          <Button
+            size="small"
+            variant="contained"
+            color="primary"
+            startIcon={<PlayCircleOutlineIcon />}
             onClick={handleApplyJson}
-            className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
           >
-            적용
-          </button>
-        </div>
-      </div>
+            {t('Apply')}
+          </Button>
+        </Stack>
+      </Stack>
 
-      {/* NODES 영역 */}
-      <div className="mb-3">
-        <div className="flex justify-between items-center text-[11px] mb-1">
-          <span className="font-semibold">nodes JSON</span>
-          <span className="text-[10px] text-gray-500">
-            예: [ &#123; ...node... &#125;, ... ]
-          </span>
-        </div>
-        <textarea
-          ref={nodesTextareaRef}
-          className="w-full mt-1 text-[10px] font-mono border rounded p-2 resize-none overflow-x-hidden bg-gray-100"
-          style={{
-            minHeight: "40px",
-            maxHeight: "200px",
-          }}
-          value={nodesJsonText}
-          placeholder='[ { "id": "...", "type": "message", ... }, ... ]'
-          onChange={(e) => setNodesJsonText(e.target.value)}
-        />
-      </div>
+      <Stack spacing={3}>
+        {/* Nodes 영역 */}
+        <Box>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            mb={1}
+            alignItems="center"
+          >
+            <Typography variant="caption" fontWeight="bold" color="primary">
+              {t('NODES DATA')}
+            </Typography>
+            <Typography variant="caption" color="text.disabled">
+              {t('Array of Objects')} [&#123;...&#125;]
+            </Typography>
+          </Stack>
+          <Box
+            component="textarea"
+            sx={textAreaStyle}
+            value={nodesJsonText}
+            onChange={(e: any) => setNodesJsonText(e.target.value)}
+            spellCheck={false}
+          />
+        </Box>
 
-      {/* EDGES 영역 */}
-      <div>
-        <div className="flex justify-between items-center text-[11px] mb-1">
-          <span className="font-semibold">edges JSON</span>
-          <span className="text-[10px] text-gray-500">
-            예: [ &#123; ...edge... &#125;, ... ]
-          </span>
-        </div>
-        <textarea
-          ref={edgesTextareaRef}
-          className="w-full mt-1 text-[10px] font-mono border rounded p-2 resize-none overflow-x-hidden bg-gray-100"
-          style={{
-            minHeight: "40px",
-            maxHeight: "200px",
-          }}
-          value={edgesJsonText}
-          placeholder='[ { "id": "...", "source": "...", "target": "...", ... ]'
-          onChange={(e) => setEdgesJsonText(e.target.value)}
-        />
-      </div>
-    </div>
+        {/* Edges 영역 */}
+        <Box>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            mb={1}
+            alignItems="center"
+          >
+            <Typography variant="caption" fontWeight="bold" color="primary">
+              {t('EDGES DATA')}
+            </Typography>
+            <Typography variant="caption" color="text.disabled">
+              {t('Array of Objects')} [&#123;...&#125;]
+            </Typography>
+          </Stack>
+          <Box
+            component="textarea"
+            sx={textAreaStyle}
+            value={edgesJsonText}
+            onChange={(e: any) => setEdgesJsonText(e.target.value)}
+            spellCheck={false}
+          />
+        </Box>
+      </Stack>
+
+      <Typography
+        variant="caption"
+        color="error"
+        sx={{ fontStyle: 'italic', textAlign: 'center' }}
+      >
+        {/* ※ JSON 구조를 수동으로 변경 시 그래프 렌더링에 오류가 발생할 수 있으니
+        주의하세요. */}
+        ※{' '}
+        {t(
+          'Manually changing the JSON structure can cause errors in graph rendering Be careful',
+        )}
+        .
+      </Typography>
+    </Box>
   );
 };
 

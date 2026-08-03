@@ -1,10 +1,12 @@
 import { Handle, Position } from 'reactflow';
 import styles from './ChatNodes.module.css';
-import useBuilderStore from '../../store/index';
+import { useBuilderStore } from '../../store/index';
 // (AnchorIcon, StartNodeIcon 임포트 제거)
 import NodeWrapper from './NodeWrapper'; // 1. Wrapper 임포트
+import { useTranslation } from 'react-i18next';
 
 function LlmNode({ id, data }) {
+  const { t } = useTranslation();
   // 2. 공통 로직 제거
   // (updateNodeData는 현재 사용되지 않으므로 제거)
   const nodeColor = useBuilderStore((state) => state.nodeColors.llm);
@@ -21,17 +23,31 @@ function LlmNode({ id, data }) {
           type="source"
           position={Position.Right}
           id={cond.id}
-          style={{ top: `${(index + 1) / ((data.conditions?.length || 0) + 2) * 100}%`, background: '#555' }}
+          style={{
+            top: `${((index + 1) / ((data.conditions?.length || 0) + 2)) * 100}%`,
+            background: '#555',
+          }}
         />
       ))}
       <Handle
         type="source"
         position={Position.Right}
         id="default"
-        style={{ top: `${((data.conditions?.length || 0) + 1) / ((data.conditions?.length || 0) + 2) * 100}%`, background: '#e74c3c' }}
+        style={{
+          top: `${(((data.conditions?.length || 0) + 1) / ((data.conditions?.length || 0) + 2)) * 100}%`,
+          background: '#e74c3c',
+        }}
       />
-      <div style={{ position: 'absolute', bottom: 10, right: -45, fontSize: '11px', color: '#e74c3c' }}>
-        Default
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 10,
+          right: -45,
+          fontSize: '11px',
+          color: '#e74c3c',
+        }}
+      >
+        {t('Default')}
       </div>
     </>
   );
@@ -48,7 +64,7 @@ function LlmNode({ id, data }) {
     >
       {/* 5. 기존 nodeBody의 내용만 children으로 전달 */}
       <div className={styles.section}>
-        <span className={styles.sectionTitle}>Prompt</span>
+        <span className={styles.sectionTitle}>{t('Prompt')}</span>
         <textarea
           className={styles.textInput}
           value={data.prompt}
@@ -57,7 +73,7 @@ function LlmNode({ id, data }) {
         />
       </div>
       <div className={styles.section}>
-        <span className={styles.sectionTitle}>Output Variable</span>
+        <span className={styles.sectionTitle}>{t('Output Variable')}</span>
         <input
           type="text"
           className={styles.textInput}
@@ -66,7 +82,7 @@ function LlmNode({ id, data }) {
         />
       </div>
       <div className={styles.section}>
-        <span className={styles.sectionTitle}>Conditions:</span>
+        <span className={styles.sectionTitle}>{t('Conditions')}:</span>
         <div className={styles.branchOptionsContainer}>
           {data.conditions?.map((cond, index) => (
             <div key={cond.id} className={styles.branchOption}>
@@ -74,9 +90,11 @@ function LlmNode({ id, data }) {
               {/* 핸들은 customHandles에서 이미 정의됨 */}
             </div>
           ))}
-           {(data.conditions?.length === 0) && (
-              <div className={styles.formElementsPlaceholder}>No conditions added.</div>
-           )}
+          {data.conditions?.length === 0 && (
+            <div className={styles.formElementsPlaceholder}>
+              {t('No conditions added')}.
+            </div>
+          )}
         </div>
       </div>
     </NodeWrapper>

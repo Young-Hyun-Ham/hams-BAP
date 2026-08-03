@@ -96,7 +96,7 @@ function buildRenderPoints(sourceX, sourceY, targetX, targetY, storedPoints) {
 function buildPath(points) {
   return points
     .map((point, index) =>
-      index === 0 ? `M ${point.x},${point.y}` : `L ${point.x},${point.y}`
+      index === 0 ? `M ${point.x},${point.y}` : `L ${point.x},${point.y}`,
     )
     .join(' ');
 }
@@ -190,7 +190,7 @@ function CustomDraggableStepEdge(props) {
     sourceY,
     targetX,
     targetY,
-    data?.points
+    data?.points,
   );
 
   const renderPoints = buildRenderPoints(
@@ -198,7 +198,7 @@ function CustomDraggableStepEdge(props) {
     sourceY,
     targetX,
     targetY,
-    storedPoints
+    storedPoints,
   );
 
   const segments = getSegments(renderPoints);
@@ -224,7 +224,7 @@ function CustomDraggableStepEdge(props) {
         initialRenderPoints,
         segment.index,
         segment.isVertical ? dx : 0,
-        segment.isHorizontal ? dy : 0
+        segment.isHorizontal ? dy : 0,
       );
 
       const nextStoredPoints = normalizePolyline(moved.slice(1, -1));
@@ -264,7 +264,9 @@ function CustomDraggableStepEdge(props) {
                   zIndex: 30,
                 }}
                 onMouseDown={createMouseDownHandler(segment)}
-                title={segment.isHorizontal ? 'Move vertical' : 'Move horizontal'}
+                title={
+                  segment.isHorizontal ? 'Move vertical' : 'Move horizontal'
+                }
               />
             ))}
           </>

@@ -1,9 +1,10 @@
-
 import styles from '../NodeController.module.css';
 import { useNodeController } from './hooks/useNodeController';
 import ChainNextCheckbox from './common/ChainNextCheckbox';
+import { useTranslation } from 'react-i18next';
 
 function ToastNodeController({ localNode, setLocalNode }) {
+  const { t } = useTranslation();
   const { data } = localNode;
   // 3. 훅 사용 및 로컬 함수 제거
   const { handleLocalDataChange } = useNodeController(setLocalNode);
@@ -11,7 +12,7 @@ function ToastNodeController({ localNode, setLocalNode }) {
   return (
     <>
       <div className={styles.formGroup}>
-        <label>Toast Message</label>
+        <label>{t('Toast Message')}</label>
         <textarea
           value={data.message || ''}
           onChange={(e) => handleLocalDataChange('message', e.target.value)}
@@ -19,7 +20,7 @@ function ToastNodeController({ localNode, setLocalNode }) {
         />
       </div>
       <div className={styles.formGroup}>
-        <label>Toast Type</label>
+        <label>{t('Toast Type')}</label>
         <select
           value={data.toastType || 'info'}
           onChange={(e) => handleLocalDataChange('toastType', e.target.value)}

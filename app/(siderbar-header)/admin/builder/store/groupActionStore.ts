@@ -1,11 +1,13 @@
-import type { Edge, Node } from 'reactflow';
-import { makeSnapshot, type StoreState } from './index';
 import useBuilderHistoryStore from './historyStore';
+
+import { makeSnapshot, type StoreState } from './index';
+
+import type { Edge, Node } from 'reactflow';
 
 type SetState = (
   partial:
     | Partial<StoreState>
-    | ((state: StoreState) => Partial<StoreState> | StoreState)
+    | ((state: StoreState) => Partial<StoreState> | StoreState),
 ) => void;
 
 type GetState = () => StoreState;
@@ -14,12 +16,12 @@ type GroupActions = Pick<StoreState, 'groupSelectedNodes' | 'ungroupNode'>;
 
 export function createGroupActionStore(
   set: SetState,
-  get: GetState
+  get: GetState,
 ): GroupActions {
   return {
     groupSelectedNodes: (groupLabel = 'Selected Group') => {
       useBuilderHistoryStore.getState().push(makeSnapshot(get()));
-      
+
       const { nodes: curNodes, edges: curEdges } = get();
 
       const selectedNodes = curNodes.filter(
@@ -27,7 +29,7 @@ export function createGroupActionStore(
           node.selected &&
           !node.parentNode &&
           node.type !== 'scenario' &&
-          node.type !== 'selectionGroup'
+          node.type !== 'selectionGroup',
       );
 
       if (selectedNodes.length < 2) {
@@ -38,15 +40,17 @@ export function createGroupActionStore(
       const selectedIds = new Set(selectedNodes.map((node) => node.id));
 
       const internalEdges = curEdges.filter(
-        (edge) => selectedIds.has(edge.source) && selectedIds.has(edge.target)
+        (edge) => selectedIds.has(edge.source) && selectedIds.has(edge.target),
       );
 
       const startCandidates = selectedNodes.filter(
-        (node) => !internalEdges.some((edge) => edge.target === node.id)
+        (node) => !internalEdges.some((edge) => edge.target === node.id),
       );
 
       if (startCandidates.length > 1) {
-        alert('그룹 내 시작 노드가 2개 이상입니다. 연결을 정리한 뒤 다시 시도하세요.');
+        alert(
+          '그룹 내 시작 노드가 2개 이상입니다. 연결을 정리한 뒤 다시 시도하세요.',
+        );
         return;
       }
 
@@ -55,8 +59,8 @@ export function createGroupActionStore(
       const exitNodeIds = selectedNodes
         .filter((node) =>
           curEdges.some(
-            (edge) => edge.source === node.id && !selectedIds.has(edge.target)
-          )
+            (edge) => edge.source === node.id && !selectedIds.has(edge.target),
+          ),
         )
         .map((node) => node.id);
 
@@ -72,14 +76,10 @@ export function createGroupActionStore(
 
       selectedNodes.forEach((node) => {
         const width =
-          (node.width as number) ||
-          Number((node.style as any)?.width) ||
-          250;
+          (node.width as number) || Number((node.style as any)?.width) || 250;
 
         const height =
-          (node.height as number) ||
-          Number((node.style as any)?.height) ||
-          150;
+          (node.height as number) || Number((node.style as any)?.height) || 150;
 
         minX = Math.min(minX, node.position.x);
         minY = Math.min(minY, node.position.y);
@@ -176,7 +176,7 @@ export function createGroupActionStore(
 
     ungroupNode: (groupId) => {
       useBuilderHistoryStore.getState().push(makeSnapshot(get()));
-      
+
       set((state) => {
         const groupNode = state.nodes.find((node) => node.id === groupId);
         if (!groupNode) return state;
@@ -245,7 +245,8 @@ export function createGroupActionStore(
         return {
           nodes: nextNodes,
           edges: nextEdges,
-          selectedNodeId: state.selectedNodeId === groupId ? null : state.selectedNodeId,
+          selectedNodeId:
+            state.selectedNodeId === groupId ? null : state.selectedNodeId,
           startNodeId: state.startNodeId === groupId ? null : state.startNodeId,
         };
       });

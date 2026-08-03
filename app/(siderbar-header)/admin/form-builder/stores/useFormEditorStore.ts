@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { createFormElement } from './elementRegistry';
-import useBuilderStore from '../../builder/store';
+import { useBuilderStore } from '../../builder/store';
 
 import type {
   DisplayValue,

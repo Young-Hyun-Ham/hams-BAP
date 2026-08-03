@@ -8,7 +8,10 @@
   display: flex;
   flex-direction: column;
   background: linear-gradient(to bottom, #ffffff, #b2c7d9);
-  transition: width 0.3s ease-in-out, height 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  transition:
+    width 0.3s ease-in-out,
+    height 0.3s ease-in-out,
+    box-shadow 0.3s ease-in-out;
 }
 
 .simulator.expanded {
@@ -22,7 +25,6 @@
   border-radius: 8px;
   border-left: none;
 }
-
 
 .header {
   padding: 10px 15px;
@@ -117,7 +119,7 @@
   font-size: 0.9rem;
   color: #333;
   text-align: left;
-  padding : 5px;
+  padding: 5px;
   background-color: white;
   border-radius: 10px;
 }
@@ -138,8 +140,10 @@
   border: 1px solid #ddd;
   border-radius: 10px;
   cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   width: 100%;
 }
 
@@ -182,7 +186,7 @@
   line-height: 1.4;
   white-space: pre-wrap;
   text-align: left;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .botMessage {
@@ -220,33 +224,33 @@
   flex-shrink: 0;
   align-items: stretch;
   box-shadow: 0 0 12px 1px rgba(130, 160, 255, 0.3);
-  border: 2px solid #87B4FF;
+  border: 2px solid #87b4ff;
   /* border-image: linear-gradient(to right, #87B4FF, #8E7AFF) 1; */
   border-radius: 16px;
 }
 
 .inputRow {
-    display: flex;
-    width: 100%;
+  display: flex;
+  width: 100%;
 }
 
 .buttonRow {
-    display: flex;
-    width: 100%;
-    gap: 8px;
-    align-items: center;
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  align-items: center;
 }
 
 .quickRepliesContainer {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    flex-grow: 1;
-    scrollbar-width: none; /* Firefox */
-    cursor: grab;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  flex-grow: 1;
+  scrollbar-width: none; /* Firefox */
+  cursor: grab;
 }
 .quickRepliesContainer::-webkit-scrollbar {
-    display: none; /* Safari and Chrome */
+  display: none; /* Safari and Chrome */
 }
 
 .attachButton {
@@ -293,7 +297,9 @@
   border-radius: 10px;
   cursor: pointer;
   font-size: 0.9rem;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
   white-space: nowrap;
 }
 
@@ -344,7 +350,10 @@
 }
 
 /* <<< [수정] .formExcelButton:disabled 추가 >>> */
-.formInput:disabled, .branchButton:disabled, .formSubmitButton:disabled, .formExcelButton:disabled {
+.formInput:disabled,
+.branchButton:disabled,
+.formSubmitButton:disabled,
+.formExcelButton:disabled {
   background-color: #f0f2f5;
   cursor: not-allowed;
   opacity: 0.7;
@@ -404,7 +413,8 @@
   border-collapse: collapse;
 }
 
-.formGridTable th, .formGridTable td {
+.formGridTable th,
+.formGridTable td {
   border: 1px solid #ccc;
   padding: 6px;
   text-align: center;
@@ -426,7 +436,6 @@
   background-color: #f0f2f5;
   font-weight: bold;
 }
-
 
 .gridInput {
   width: 100%;
@@ -450,9 +459,10 @@
   gap: 6px;
 }
 
-.branchButtonsContainer.dragging, .quickRepliesContainer.dragging {
-    cursor: grabbing;
-    user-select: none;
+.branchButtonsContainer.dragging,
+.quickRepliesContainer.dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .branchButton {

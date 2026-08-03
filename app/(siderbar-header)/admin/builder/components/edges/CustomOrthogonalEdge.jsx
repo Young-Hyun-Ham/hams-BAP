@@ -1,5 +1,5 @@
 import { BaseEdge, EdgeLabelRenderer } from 'reactflow';
-import useBuilderStore from '../../store/index';
+import { useBuilderStore } from '../../store/index';
 
 const MIN_SEGMENT_LENGTH = 24;
 
@@ -45,18 +45,44 @@ function compressCollinear(points) {
 
 function expandDiagonalPairs(points) {
   if (!Array.isArray(points)) return [];
-  return points.map(clonePoint)
+  return points.map(clonePoint);
 }
 
 function normalize(points) {
   return compressCollinear(dedupe(expandDiagonalPairs(points)));
 }
 
-function getInitialBendPoints(sourceX, sourceY, targetX, targetY) {
+function getInitialBendPoints(
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+) {
+  const isSourceBottom = sourcePosition === 'bottom';
+  const isTargetTop = targetPosition === 'top';
+
+  if (isSourceBottom && isTargetTop) {
+    const midY = (sourceY + targetY) / 2;
+    return [
+      { x: sourceX, y: midY },
+      { x: targetX, y: midY },
+    ];
+  }
+
+  if (isSourceBottom) {
+    return [{ x: sourceX, y: targetY }];
+  }
+
+  if (isTargetTop) {
+    return [{ x: targetX, y: sourceY }];
+  }
+
   const MIN_EXIT_SPACE = 40; // 노드에서 빠져나올 최소 거리
-  
+
   // 상황 판별: 타겟이 소스보다 우측에 여유 있게(최소 공간 이상) 있는가?
-  const isTargetFarRight = targetX > sourceX + (MIN_EXIT_SPACE * 2);
+  const isTargetFarRight = targetX > sourceX + MIN_EXIT_SPACE * 2;
 
   if (isTargetFarRight) {
     /**
@@ -78,20 +104,35 @@ function getInitialBendPoints(sourceX, sourceY, targetX, targetY) {
     const midY = (sourceY + targetY) / 2;
 
     return [
-      { x: safeExitX, y: sourceY },   // 1. 소스에서 오른쪽으로 나감
-      { x: safeExitX, y: midY },      // 2. 중간 높이까지 내려감
-      { x: safeEntryX, y: midY },     // 3. 타겟의 왼쪽 뒤편으로 이동
-      { x: safeEntryX, y: targetY },  // 4. 타겟 높이로 맞춤
+      { x: safeExitX, y: sourceY }, // 1. 소스에서 오른쪽으로 나감
+      { x: safeExitX, y: midY }, // 2. 중간 높이까지 내려감
+      { x: safeEntryX, y: midY }, // 3. 타겟의 왼쪽 뒤편으로 이동
+      { x: safeEntryX, y: targetY }, // 4. 타겟 높이로 맞춤
     ];
   }
 }
 
-function getBendPoints(sourceX, sourceY, targetX, targetY, storedPoints) {
-  if (Array.isArray(storedPoints)) {
+function getBendPoints(
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  storedPoints,
+) {
+  if (Array.isArray(storedPoints) && storedPoints.length > 0) {
     return normalize(storedPoints);
   }
 
-  return getInitialBendPoints(sourceX, sourceY, targetX, targetY);
+  return getInitialBendPoints(
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  );
 }
 
 function buildFullPoints(sourceX, sourceY, targetX, targetY, bendPoints) {
@@ -105,7 +146,7 @@ function buildFullPoints(sourceX, sourceY, targetX, targetY, bendPoints) {
 function buildPath(points) {
   return points
     .map((point, index) =>
-      index === 0 ? `M ${point.x},${point.y}` : `L ${point.x},${point.y}`
+      index === 0 ? `M ${point.x},${point.y}` : `L ${point.x},${point.y}`,
     )
     .join(' ');
 }
@@ -240,10 +281,13 @@ function CustomOrthogonalEdge(props) {
     sourceY,
     targetX,
     targetY,
+    sourcePosition,
+    targetPosition,
     markerEnd,
     selected,
     data,
     style,
+    label,
   } = props;
 
   const updateEdgePoints = useBuilderStore((state) => state.updateEdgePoints);
@@ -253,7 +297,9 @@ function CustomOrthogonalEdge(props) {
     sourceY,
     targetX,
     targetY,
-    data?.points
+    sourcePosition,
+    targetPosition,
+    data?.points,
   );
 
   const fullPoints = buildFullPoints(
@@ -261,11 +307,19 @@ function CustomOrthogonalEdge(props) {
     sourceY,
     targetX,
     targetY,
-    bendPoints
+    bendPoints,
   );
 
   const edgePath = buildPath(fullPoints);
   const segments = getSegments(fullPoints);
+
+  const displayLabel = label || data?.label;
+  const midSegment =
+    segments && segments.length > 0
+      ? segments[Math.floor(segments.length / 2)]
+      : null;
+  const labelX = midSegment ? midSegment.centerX : (sourceX + targetX) / 2;
+  const labelY = midSegment ? midSegment.centerY : (sourceY + targetY) / 2;
 
   const createMouseDownHandler = (segment) => (event) => {
     event.preventDefault();
@@ -283,7 +337,7 @@ function CustomOrthogonalEdge(props) {
         initialFullPoints,
         segment.index,
         segment.isVertical ? dx : 0,
-        segment.isHorizontal ? dy : 0
+        segment.isHorizontal ? dy : 0,
       );
 
       updateEdgePoints(id, normalize(movedFullPoints).slice(1, -1));
@@ -302,6 +356,35 @@ function CustomOrthogonalEdge(props) {
     <>
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
 
+      {displayLabel && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              background:
+                displayLabel === 'Y'
+                  ? '#16a34a'
+                  : displayLabel === 'N'
+                    ? '#dc2626'
+                    : displayLabel === 'Default'
+                      ? '#ef4444'
+                      : '#2563eb',
+              color: '#ffffff',
+              padding: displayLabel === 'Default' ? '3px 9px' : '2px 8px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontWeight: 700,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+              pointerEvents: 'all',
+              zIndex: 25,
+            }}
+          >
+            {displayLabel}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+
       {selected && (
         <EdgeLabelRenderer>
           <>
@@ -309,7 +392,9 @@ function CustomOrthogonalEdge(props) {
               <div
                 key={`${id}-segment-${segment.index}`}
                 onMouseDown={createMouseDownHandler(segment)}
-                title={segment.isHorizontal ? 'Move vertical' : 'Move horizontal'}
+                title={
+                  segment.isHorizontal ? 'Move vertical' : 'Move horizontal'
+                }
                 style={{
                   position: 'absolute',
                   transform: `translate(-50%, -50%) translate(${segment.centerX}px, ${segment.centerY}px)`,

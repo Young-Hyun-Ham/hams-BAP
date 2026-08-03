@@ -1,13 +1,13 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 
 export type ExecutionPhase =
-  | "start"
-  | "enter"
-  | "complete"
-  | "wait"
-  | "error"
-  | "finish"
-  | "cancel";
+  | 'start'
+  | 'enter'
+  | 'complete'
+  | 'wait'
+  | 'error'
+  | 'finish'
+  | 'cancel';
 
 export type ExecutionLog = {
   at: string;
@@ -15,7 +15,7 @@ export type ExecutionLog = {
   nodeId?: string;
   nodeType?: string;
   message?: string;
-  payload?: unknown;
+  payload?: any;
 };
 
 type StartExecutionMeta = {
@@ -25,7 +25,7 @@ type StartExecutionMeta = {
 
 type MarkCompletedMeta = {
   nodeType?: string;
-  payload?: unknown;
+  payload?: any;
 };
 
 // 20260317 - 플레이시 branch 노드는 모달 팝업으로 선택 시 까지 pending 효과
@@ -48,6 +48,7 @@ type PendingFormInput = {
   slotKey?: string;
   elements: unknown[];
   initialValues: Record<string, unknown>;
+  slots?: Record<string, unknown>;
 } | null;
 
 type BuilderExecutionStore = {
@@ -89,7 +90,6 @@ const initialState = {
   executionStartedAt: null as string | null,
   executionEndedAt: null as string | null,
   executionError: null as string | null,
-  pendingBranchSelection: null as PendingBranchSelection,
   pendingFormInput: null as PendingFormInput,
 };
 
@@ -110,8 +110,8 @@ export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
       executionLogs: [
         {
           at: now(),
-          phase: "start",
-          message: "Builder execution started",
+          phase: 'start',
+          message: 'Builder execution started',
           payload: meta ?? {},
         },
       ],
@@ -131,7 +131,9 @@ export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
 
   markExecutionCompleted: (nodeId) =>
     set((state) => ({
-      executionCompletedNodeIds: state.executionCompletedNodeIds.includes(nodeId)
+      executionCompletedNodeIds: state.executionCompletedNodeIds.includes(
+        nodeId,
+      )
         ? state.executionCompletedNodeIds
         : [...state.executionCompletedNodeIds, nodeId],
     })),
@@ -150,8 +152,8 @@ export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
         ...state.executionLogs,
         {
           at: now(),
-          phase: "finish",
-          message: message ?? "Builder execution finished",
+          phase: 'finish',
+          message: message ?? 'Builder execution finished',
         },
       ],
     })),
@@ -166,7 +168,7 @@ export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
         ...state.executionLogs,
         {
           at: now(),
-          phase: "error",
+          phase: 'error',
           message,
           ...extra,
         },
@@ -182,11 +184,13 @@ export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
         ...state.executionLogs,
         {
           at: now(),
-          phase: "cancel",
-          message: message ?? "Builder execution canceled",
+          phase: 'cancel',
+          message: message ?? 'Builder execution canceled',
         },
       ],
     })),
+
+  pendingBranchSelection: null,
 
   openBranchSelection: (payload) =>
     set({
@@ -207,5 +211,4 @@ export const builderExecutionStore = create<BuilderExecutionStore>((set) => ({
     set({
       pendingFormInput: null,
     }),
-
 }));

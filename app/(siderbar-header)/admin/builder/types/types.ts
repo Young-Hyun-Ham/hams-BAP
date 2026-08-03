@@ -1,17 +1,21 @@
-// app/(content-header)/builder/types/types.ts
+import { Node } from 'reactflow';
 
-type Scenarios = {
-  id: string;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type Scenario = {
+  id?: string;
+  category_id?: string;
   edges?: any[];
   nodes?: any[];
   job?: string;
   name: string;
   startNodeId?: string;
   description: string;
+  version_yn?: boolean;
+  ltst_ver_id?: any;
+  depn_ver_id?: any;
   [key: string]: any;
 };
-
-type BackendKind = 'firebase' | 'fastapi' | 'mock';
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 type TreeItem = {
   id: string;
@@ -32,6 +36,8 @@ type VersionTreeItem = {
   children: VersionTreeItem[];
 };
 
+type DB_TYPE = 'fastapi' | 'firebase';
+
 type UserInfo = {
   id: string;
   user_id: string;
@@ -42,10 +48,41 @@ type UserInfo = {
   node_colors?: Record<string, string>;
 };
 
-export type { 
-  Scenarios,
-  BackendKind,
-  TreeItem, 
-  VersionTreeItem, 
+type InsertTarget = {
+  sourceId?: string | null;
+  sourceHandle?: string | null;
+  targetId?: string | null;
+  parentId?: string | null;
+};
+
+type AddNodeData = {
+  target: InsertTarget;
+  onAdd: (target: InsertTarget) => void;
+};
+
+type BuilderNodeData = {
+  id?: string;
+  label?: string;
+  title?: string;
+  content?: string;
+  replies?: Array<{ display?: string; value?: string }>;
+  conditions?: Array<any>;
+  evaluationType?: string;
+  flowCollapsed?: boolean;
+  flowGroupHeight?: number;
+  [key: string]: any;
+};
+
+type BuilderNode = Node<BuilderNodeData>;
+
+export type {
+  Scenario,
+  TreeItem,
+  VersionTreeItem,
+  DB_TYPE,
   UserInfo,
+  InsertTarget,
+  AddNodeData,
+  BuilderNodeData,
+  BuilderNode,
 };

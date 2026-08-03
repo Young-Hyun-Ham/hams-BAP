@@ -1,5 +1,5 @@
-import { create } from "zustand";
-import type { Edge, Node } from "reactflow";
+import { create } from 'zustand';
+import { MarkerType, type Edge, type Node } from 'reactflow';
 
 type ClipboardPayload = {
   nodes: Node<any>[];
@@ -24,6 +24,7 @@ type PasteArgs = {
   setEdges: (edges: Edge<any>[]) => void;
   pushHistory: () => void;
   pastePosition?: { x: number; y: number } | null;
+  appendToLastNode?: boolean;
 };
 
 type BuilderClipboardState = {
@@ -34,158 +35,224 @@ type BuilderClipboardState = {
   clearClipboard: () => void;
 };
 
-const deepCopy = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+const deepCopy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 const makeNodeId = (type: string, index: number) =>
   `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${index}`;
 
 const makeEdgeId = (source: string, target: string, edge: Edge<any>) =>
-  `reactflow__edge-${source}${edge.sourceHandle || ""}-${target}${edge.targetHandle || ""}`;
+  `reactflow__edge-${source}${edge.sourceHandle || ''}-${target}${edge.targetHandle || ''}`;
 
-export const builderClipboardStore = create<BuilderClipboardState>((set, get) => ({
-  clipboard: null,
+const makeWorkflowEdgeId = (
+  source: string,
+  target: string,
+  sourceHandle?: string | null,
+) => `reactflow__edge-${source}${sourceHandle || ''}-${target}`;
 
-  copySelection: ({ nodes, edges, selectedNodeIds }) => {
-    if (!selectedNodeIds.length) return;
+const getLastAppendableNode = (nodes: Node<any>[], edges: Edge<any>[]) => {
+  const topLevelNodes = nodes.filter((node) => !node.parentNode);
+  if (topLevelNodes.length === 0) return null;
 
-    const includedNodeIds = new Set<string>();
-    const childrenByParent = new Map<string, Node<any>[]>();
+  const terminalNodes = topLevelNodes.filter(
+    (node) =>
+      !edges.some(
+        (edge) =>
+          edge.source === node.id &&
+          topLevelNodes.some((targetNode) => targetNode.id === edge.target),
+      ),
+  );
 
-    nodes.forEach((node) => {
-      if (!node.parentNode) return;
+  return (
+    (terminalNodes.length > 0 ? terminalNodes : topLevelNodes)
+      .slice()
+      .sort((a, b) => (b.position?.y ?? 0) - (a.position?.y ?? 0))[0] || null
+  );
+};
 
-      const siblings = childrenByParent.get(node.parentNode) ?? [];
-      siblings.push(node);
-      childrenByParent.set(node.parentNode, siblings);
-    });
+export const builderClipboardStore = create<BuilderClipboardState>(
+  (set, get) => ({
+    clipboard: null,
 
-    const includeNodeTree = (nodeId: string) => {
-      if (includedNodeIds.has(nodeId)) return;
+    copySelection: ({ nodes, edges, selectedNodeIds }) => {
+      if (!selectedNodeIds.length) return;
 
-      includedNodeIds.add(nodeId);
+      const includedNodeIds = new Set<string>();
+      const childrenByParent = new Map<string, Node<any>[]>();
 
-      const children = childrenByParent.get(nodeId) ?? [];
-      children.forEach((child) => includeNodeTree(child.id));
-    };
+      nodes.forEach((node) => {
+        if (!node.parentNode) return;
 
-    selectedNodeIds.forEach(includeNodeTree);
+        const siblings = childrenByParent.get(node.parentNode) ?? [];
+        siblings.push(node);
+        childrenByParent.set(node.parentNode, siblings);
+      });
 
-    const selectedNodes = nodes.filter((node) => includedNodeIds.has(node.id));
-    const selectedEdges = edges.filter(
-      (edge) => includedNodeIds.has(edge.source) && includedNodeIds.has(edge.target)
-    );
+      const includeNodeTree = (nodeId: string) => {
+        if (includedNodeIds.has(nodeId)) return;
 
-    set({
-      clipboard: {
-        nodes: deepCopy(selectedNodes),
-        edges: deepCopy(selectedEdges),
-        copiedAt: new Date().toISOString(),
-      },
-    });
-  },
+        includedNodeIds.add(nodeId);
 
-  cutSelection: ({ nodes, edges, selectedNodeIds, deleteNodesByIds }) => {
-    get().copySelection({ nodes, edges, selectedNodeIds });
-    deleteNodesByIds(selectedNodeIds);
-  },
-
-  pasteClipboard: ({ nodes, edges, setNodes, setEdges, pushHistory, pastePosition }) => {
-    const clipboard = get().clipboard;
-    if (!clipboard || clipboard.nodes.length === 0) return;
-
-    pushHistory();
-
-    const idMap = new Map<string, string>();
-    const copiedNodeIdSet = new Set(clipboard.nodes.map((node) => node.id));
-
-    const topLevelNodes = clipboard.nodes.filter(
-      (node) => !node.parentNode || !copiedNodeIdSet.has(node.parentNode)
-    );
-
-    const minX = Math.min(...topLevelNodes.map((node) => node.position.x));
-    const minY = Math.min(...topLevelNodes.map((node) => node.position.y));
-
-    const baseOffset = pastePosition
-      ? { x: pastePosition.x - minX, y: pastePosition.y - minY }
-      : { x: 40, y: 40 };
-
-    const pastedNodes: Node<any>[] = clipboard.nodes.map((node, index) => {
-      const nextId = makeNodeId(node.type || "node", index);
-      idMap.set(node.id, nextId);
-
-      const isChildOfCopiedParent =
-        !!node.parentNode && copiedNodeIdSet.has(node.parentNode);
-
-      return {
-        ...deepCopy(node),
-        id: nextId,
-        position: isChildOfCopiedParent
-          ? { ...node.position }
-          : {
-              x: node.position.x + baseOffset.x,
-              y: node.position.y + baseOffset.y,
-            },
-        selected: false,
+        const children = childrenByParent.get(nodeId) ?? [];
+        children.forEach((child) => includeNodeTree(child.id));
       };
-    });
 
-    const normalizedNodes: Node<any>[] = pastedNodes.map((node, index) => {
-      const originalNode = clipboard.nodes[index];
-      const originalParentId = originalNode.parentNode;
+      selectedNodeIds.forEach(includeNodeTree);
 
-      if (!originalParentId || !idMap.has(originalParentId)) {
-        const nextNode = { ...node };
-        delete nextNode.parentNode;
-        delete nextNode.extent;
-        return nextNode;
-      }
+      const selectedNodes = nodes.filter((node) =>
+        includedNodeIds.has(node.id),
+      );
+      const selectedEdges = edges.filter(
+        (edge) =>
+          includedNodeIds.has(edge.source) && includedNodeIds.has(edge.target),
+      );
 
-      return {
-        ...node,
-        parentNode: idMap.get(originalParentId),
-        extent: originalNode.extent,
-      };
-    });
+      set({
+        clipboard: {
+          nodes: deepCopy(selectedNodes),
+          edges: deepCopy(selectedEdges),
+          copiedAt: new Date().toISOString(),
+        },
+      });
+    },
 
-    const pastedEdges = clipboard.edges
-      .map((edge) => {
-        const source = idMap.get(edge.source);
-        const target = idMap.get(edge.target);
-        if (!source || !target) return null;
+    cutSelection: ({ nodes, edges, selectedNodeIds, deleteNodesByIds }) => {
+      get().copySelection({ nodes, edges, selectedNodeIds });
+      deleteNodesByIds(selectedNodeIds);
+    },
 
-        const nextData = deepCopy(edge.data ?? {});
+    pasteClipboard: ({
+      nodes,
+      edges,
+      setNodes,
+      setEdges,
+      pushHistory,
+      pastePosition,
+      appendToLastNode,
+    }) => {
+      const clipboard = get().clipboard;
+      if (!clipboard || clipboard.nodes.length === 0) return;
 
-        if (Array.isArray(nextData.points)) {
-          nextData.points = nextData.points.map((point: { x: number; y: number }) => ({
-            x: point.x + baseOffset.x,
-            y: point.y + baseOffset.y,
-          }));
-        }
+      pushHistory();
 
-        if (typeof nextData.controlX === "number") {
-          nextData.controlX += baseOffset.x;
-        }
+      const idMap = new Map<string, string>();
+      const copiedNodeIdSet = new Set(clipboard.nodes.map((node) => node.id));
 
-        if (typeof nextData.controlY === "number") {
-          nextData.controlY += baseOffset.y;
+      const topLevelNodes = clipboard.nodes.filter(
+        (node) => !node.parentNode || !copiedNodeIdSet.has(node.parentNode),
+      );
+
+      const minX = Math.min(...topLevelNodes.map((node) => node.position.x));
+      const minY = Math.min(...topLevelNodes.map((node) => node.position.y));
+
+      const baseOffset = pastePosition
+        ? { x: pastePosition.x - minX, y: pastePosition.y - minY }
+        : { x: 40, y: 40 };
+
+      const pastedNodes: Node<any>[] = clipboard.nodes.map((node, index) => {
+        const nextId = makeNodeId(node.type || 'node', index);
+        idMap.set(node.id, nextId);
+
+        const isChildOfCopiedParent =
+          !!node.parentNode && copiedNodeIdSet.has(node.parentNode);
+
+        return {
+          ...deepCopy(node),
+          id: nextId,
+          position: isChildOfCopiedParent
+            ? { ...node.position }
+            : {
+                x: node.position.x + baseOffset.x,
+                y: node.position.y + baseOffset.y,
+              },
+          selected: false,
+        };
+      });
+
+      const normalizedNodes: Node<any>[] = pastedNodes.map((node, index) => {
+        const originalNode = clipboard.nodes[index];
+        const originalParentId = originalNode.parentNode;
+
+        if (!originalParentId || !idMap.has(originalParentId)) {
+          const nextNode = { ...node };
+          delete nextNode.parentNode;
+          delete nextNode.extent;
+          return nextNode;
         }
 
         return {
-          ...deepCopy(edge),
-          id: makeEdgeId(source, target, edge),
-          source,
-          target,
-          data: nextData,
-          selected: false,
+          ...node,
+          parentNode: idMap.get(originalParentId),
+          extent: originalNode.extent,
         };
-      })
-      .filter(Boolean) as Edge<any>[];
+      });
 
-    setNodes([...nodes, ...normalizedNodes]);
-    setEdges([...edges, ...pastedEdges]);
+      const pastedEdges = clipboard.edges
+        .map((edge) => {
+          const source = idMap.get(edge.source);
+          const target = idMap.get(edge.target);
+          if (!source || !target) return null;
 
-    get().clearClipboard();
-  },
+          const nextData = deepCopy(edge.data ?? {});
 
-  clearClipboard: () => set({ clipboard: null }),
-}));
+          if (Array.isArray(nextData.points)) {
+            nextData.points = nextData.points.map(
+              (point: { x: number; y: number }) => ({
+                x: point.x + baseOffset.x,
+                y: point.y + baseOffset.y,
+              }),
+            );
+          }
+
+          if (typeof nextData.controlX === 'number') {
+            nextData.controlX += baseOffset.x;
+          }
+
+          if (typeof nextData.controlY === 'number') {
+            nextData.controlY += baseOffset.y;
+          }
+
+          return {
+            ...deepCopy(edge),
+            id: makeEdgeId(source, target, edge),
+            source,
+            target,
+            data: nextData,
+            selected: false,
+          };
+        })
+        .filter(Boolean) as Edge<any>[];
+
+      const appendSourceNode = appendToLastNode
+        ? getLastAppendableNode(nodes, edges)
+        : null;
+      const appendTargetNode = appendToLastNode
+        ? normalizedNodes.find((node) => !node.parentNode) || null
+        : null;
+      const appendEdge =
+        appendSourceNode && appendTargetNode
+          ? [
+              {
+                id: makeWorkflowEdgeId(
+                  appendSourceNode.id,
+                  appendTargetNode.id,
+                ),
+                source: appendSourceNode.id,
+                target: appendTargetNode.id,
+                sourceHandle: null,
+                targetHandle: null,
+                type: 'smoothstep',
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#b8c2cc' },
+                style: { stroke: '#b8c2cc', strokeWidth: 1.4 },
+              } as Edge<any>,
+            ]
+          : [];
+
+      setNodes([...nodes, ...normalizedNodes]);
+      setEdges([...edges, ...pastedEdges, ...appendEdge]);
+
+      get().clearClipboard();
+    },
+
+    clearClipboard: () => set({ clipboard: null }),
+  }),
+);

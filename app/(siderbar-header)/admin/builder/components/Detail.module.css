@@ -72,7 +72,7 @@
   gap: 5px;
 }
 
-.colorSettingItem input[type="color"] {
+.colorSettingItem input[type='color'] {
   width: 30px;
   height: 24px;
   border: 1px solid #ccc;
@@ -123,7 +123,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 0;
+  min-height: 400px; /* 초기 로딩 시도 보장용(선택) */
 }
 
 .topRightControls {
@@ -189,7 +189,7 @@
 }
 
 .resizerV.visible {
-    width: 5px;
+  width: 5px;
 }
 
 .resizerV:hover {
@@ -239,19 +239,42 @@
   transition: background-color 0.2s, transform 0.2s; */
 }
 
-/* 20260312 */
+/* ================================================================== */
 .searchPanel {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 1120px;
+  width: max-content;
+  max-width: calc(100vw - 60px);
   padding: 10px;
   border-radius: 12px;
   background: #ffffff;
   border: 1px solid #d1d5db;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  transition: width 0.2s ease, padding 0.2s ease, gap 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    width 0.2s ease,
+    padding 0.2s ease,
+    gap 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.searchViewPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 1000px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition:
+    width 0.2s ease,
+    padding 0.2s ease,
+    gap 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .searchPanelCollapsed {
@@ -291,7 +314,11 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .toolButton:hover:not(:disabled) {
@@ -324,6 +351,7 @@
 
 .searchInput {
   flex: 1;
+  min-width: 250px;
   height: 40px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -381,7 +409,7 @@
   word-break: break-word;
 }
 
-/* 20260312 - 노드 상세 정보 패널 스타일 */
+/* 노드 상세 정보 패널 스타일 */
 .toolButtonActive {
   background: #e0f2fe;
   border-color: #0284c7;
@@ -389,7 +417,7 @@
   box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.15);
 }
 
-/* 20260312 - 캔버스 커서 스타일 */
+/* 캔버스 커서 스타일 */
 .panCanvas :global(.react-flow__pane) {
   cursor: grab;
 }
@@ -402,7 +430,7 @@
   cursor: default;
 }
 
-/* 20260312 - 노드 패널 접기/펼치기 스타일 */
+/* 노드 패널 접기/펼치기 스타일 */
 .leftSidebar {
   width: 220px;
   flex-shrink: 0;
@@ -416,7 +444,10 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: width 0.2s ease, padding 0.2s ease, border-color 0.2s ease;
+  transition:
+    width 0.2s ease,
+    padding 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .leftSidebarCollapsed {
@@ -433,8 +464,7 @@
   z-index: 10;
 }
 
-
-/* 20260317 - 마우스 우클릭 */
+/* 마우스 우클릭 */
 .layerMenu {
   position: fixed;
   z-index: 1000;

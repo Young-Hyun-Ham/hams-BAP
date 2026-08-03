@@ -114,7 +114,7 @@ export default function SidebarNav({ items }: Props) {
       {roots.map((group: any) => {
         const hasChildren = group.children && group.children.length > 0;
         const isOpen = !!open[group.id];
-
+        // console.log("=============> ", group)
         const computedPath = group.path_ids
           ? '/' +
             group.path_ids
@@ -145,7 +145,7 @@ export default function SidebarNav({ items }: Props) {
               ) : (
                 <Link
                   href={{
-                    pathname: computedPath,
+                    pathname: group.href || computedPath,
                     query: { path_ids: group.path_ids, depth: 0 },
                   }}
                   className="flex-1 text-xs font-semibold text-gray-600 uppercase tracking-wide hover:underline"

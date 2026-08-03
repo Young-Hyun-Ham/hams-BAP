@@ -1,3 +1,6 @@
+// app/builder/store/index.js
+'use client';
+
 import { create } from 'zustand';
 import {
   addEdge,
@@ -9,32 +12,31 @@ import {
   type EdgeChange,
   type Connection,
 } from 'reactflow';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-
-import { db } from '@/lib/firebase';
-import * as firebaseApi from '../services/firebaseApi';
 
 import { createNodeData, createFormElement } from '../utils/nodeFactory';
-import * as backendService from '../services/backendService';
-import { BackendKind, TreeItem, UserInfo } from '../types/types';
+import {
+  fetchScenarioData,
+  fetchScenarios,
+  saveScenarioData,
+  createScenario,
+  patchScenario,
+  deleteScenario,
+  cloneScenario,
+} from '../services/backendService';
+import { DB_TYPE, Scenario, TreeItem, UserInfo } from '../types/types';
+import useBuilderHistoryStore, { GraphSnapshot } from './historyStore';
 import { createGroupActionStore } from './groupActionStore';
 import {
   createEdgeControlActionStore,
+  EdgePoint,
   sanitizeEdgesForSave,
   sanitizeNodesForSave,
-  type EdgePoint,
 } from './edgeControlActionStore';
-import useBuilderHistoryStore, { GraphSnapshot } from './historyStore';
 
 // ================================================================
 // 플레이 타입 설정
 export type ExecutionPhase =
-  | "start"
-  | "enter"
-  | "complete"
-  | "wait"
-  | "error"
-  | "finish";
+  'start' | 'enter' | 'complete' | 'wait' | 'error' | 'finish';
 
 export type ExecutionLog = {
   at: string;
@@ -44,30 +46,9 @@ export type ExecutionLog = {
   message?: string;
   payload?: any;
 };
-
-type ExecutionState = {
-  executionRunning: boolean;
-  executionCurrentNodeId: string | null;
-  executionCompletedNodeIds: string[];
-  executionVisitedNodeIds: string[];
-  executionLogs: ExecutionLog[];
-  executionStartedAt: string | null;
-  executionEndedAt: string | null;
-  executionError: string | null;
-};
-
-type ExecutionActions = {
-  resetExecution: () => void;
-  startExecution: (meta?: { startNodeId?: string | null; anchorNodeId?: string | null }) => void;
-  setExecutionCurrentNode: (nodeId: string | null) => void;
-  markExecutionCompleted: (nodeId: string) => void;
-  appendExecutionLog: (log: ExecutionLog) => void;
-  finishExecution: (message?: string) => void;
-  failExecution: (message: string, extra?: Partial<ExecutionLog>) => void;
-};
 // ================================================================
 
-/* 1) 노드 타입(키) 고정 */
+/* 노드 타입(키) 고정 */
 export type NodeType =
   | 'message'
   | 'form'
@@ -81,13 +62,9 @@ export type NodeType =
   | 'link'
   | 'toast'
   | 'iframe'
-  | 'scenario'
-  | 'selectionGroup';
+  | 'scenario';
 
-/* 2) 색상 맵 타입 */
-type ColorMap = any; // Record<NodeType, string>;
-
-/* 3) 기본 색상/텍스트 색상: 키 누락 방지 */
+/* 기본 색상/텍스트 색상: 키 누락 방지 */
 const defaultColors = {
   message: '#f39c12',
   form: '#9b59b6',
@@ -98,12 +75,11 @@ const defaultColors = {
   setSlot: '#8e44ad',
   delay: '#f1c40f',
   fixedmenu: '#e74c3c',
-  link: '#34495e',
+  link: '#1977d4ff',
   toast: '#95a5a6',
-  iframe: '#2c3e50',
+  iframe: '#7e96afff',
   scenario: '#7f8c8d',
-  selectionGroup: '#475569',
-} satisfies ColorMap;
+} satisfies any;
 
 const defaultTextColors = {
   message: '#ffffff',
@@ -119,13 +95,12 @@ const defaultTextColors = {
   toast: '#ffffff',
   iframe: '#ffffff',
   scenario: '#ffffff',
-  selectionGroup: '#ffffff',
-} satisfies ColorMap;
+} satisfies any;
 
-/* 4) 키 배열을 NodeType[]로 고정 */
+/* 키 배열을 NodeType[]로 고정 */
 export const ALL_NODE_TYPES = Object.keys(defaultColors) as NodeType[];
 
-/* 5) 기본 표시 타입 */
+/* 기본 표시 타입 */
 const defaultVisibleNodeTypes: NodeType[] = [
   'message',
   'form',
@@ -138,21 +113,8 @@ const defaultVisibleNodeTypes: NodeType[] = [
   'link',
   'iframe',
   'scenario',
-  'llm',
-  'toast',
+  // 'llm','toast',
 ];
-
-/* 6) 공통 유틸: 색상 병합 */
-function mergeColors(
-  dbColors: Partial<Record<NodeType, string>> | undefined,
-  defaults: ColorMap
-): ColorMap {
-  const base = dbColors ?? {};
-  return ALL_NODE_TYPES.reduce<ColorMap>((acc, t) => {
-    acc[t] = base[t] ?? defaults[t];
-    return acc;
-  }, {} as ColorMap);
-}
 
 /* scenario detail nodes data */
 export const MOCK_UP_TREE_DATA: TreeItem[] = [
@@ -234,8 +196,10 @@ const userInfo: UserInfo = {
   node_colors: defaultColors,
 };
 
+/* 스토어 상태/액션 타입 */
 export type StoreState = {
-  backend: BackendKind;
+  backend: DB_TYPE;
+  setBackend: (kind: DB_TYPE) => void;
 
   userInfoJson: UserInfo;
   setUserInfoJson: (userInfo: UserInfo) => void;
@@ -243,19 +207,30 @@ export type StoreState = {
   treeNodes: TreeItem[];
   loadTreeNodes: () => void;
 
-  nodes: Node<any>[];
+  scenario: Scenario;
+  setScenario: (item: Scenario) => void;
+  scenarios: Scenario[];
+  setScenarios: (item: Scenario[]) => void;
+
+  nodes: Node<any>[]; // 노드 데이터 제네릭이 다양하므로 any 유지
   edges: Edge<any>[];
 
   setNodes: (newNodes: Node<any>[]) => void;
   setEdges: (newEdges: Edge<any>[]) => void;
 
+  selectedVersionId: string | null;
+  setSelectedVersionId: (ver_id: string) => void;
+
   selectedNodeId: string | null;
   anchorNodeId: string | null;
   startNodeId: string | null;
 
-  nodeColors: ColorMap;
-  nodeTextColors: ColorMap;
+  nodeColors: any;
+  nodeTextColors: any;
+  setNodeColors: (nodeColors: any) => void;
+  setNodeTextColors: (nodeTextColors: any) => void;
 
+  // 슬롯/행 등 기존 any 구조는 점진 전환용으로 둠
   slots: Record<string, unknown>;
   selectedRow: unknown;
 
@@ -265,15 +240,6 @@ export type StoreState = {
   setStartNodeId: (nodeId: string | null) => void;
   setSelectedRow: (row: unknown) => void;
   setSlots: (newSlots: Record<string, unknown>) => void;
-
-  fetchNodeColors: () => Promise<void>;
-  fetchNodeTextColors: () => Promise<void>;
-
-  fetchNodeVisibility: () => Promise<void>;
-  setNodeVisibility: (nodeType: NodeType, isVisible: boolean) => Promise<void>;
-
-  setNodeColor: (type: NodeType, color: string) => Promise<void>;
-  setNodeTextColor: (type: NodeType, color: string) => Promise<void>;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -296,7 +262,7 @@ export type StoreState = {
     nodeId: string,
     index: number,
     part: 'display' | 'value',
-    value: string
+    value: string,
   ) => void;
   deleteReply: (nodeId: string, index: number) => void;
 
@@ -304,7 +270,7 @@ export type StoreState = {
   updateElement: (
     nodeId: string,
     elementIndex: number,
-    elementUpdate: Record<string, any>
+    elementUpdate: Record<string, any>,
   ) => void;
   deleteElement: (nodeId: string, elementIndex: number) => void;
   updateGridCell: (
@@ -312,7 +278,7 @@ export type StoreState = {
     elementIndex: number,
     rowIndex: number,
     colIndex: number,
-    value: string
+    value: string,
   ) => void;
   moveElement: (nodeId: string, startIndex: number, endIndex: number) => void;
 
@@ -320,9 +286,8 @@ export type StoreState = {
   importNodes: () => Promise<void>;
 
   addScenarioAsGroup: (
-    backend: any,
     scenario: { id: string; name: string },
-    position?: { x: number; y: number }
+    position?: { x: number; y: number },
   ) => Promise<void>;
 
   groupSelectedNodes: (groupLabel?: string) => void;
@@ -331,16 +296,26 @@ export type StoreState = {
   updateEdgeSegment: (edgeId: string, points: EdgePoint[]) => void;
   updateEdgePoints: (edgeId: string, points: EdgePoint[]) => void;
 
-  // 20260312 - undo/redo 기능 추가
+  // undo/redo 기능 추가
   undo: () => void;
   redo: () => void;
 
-  fetchScenario: (backend: any, scenarioId: string) => Promise<void>;
-  saveScenario: (backend: any, scenario: { id: string; name: string }) => Promise<void>;
+  fetchScenarios: (options: any) => Promise<void>;
+  fetchScenario: (scenarioId: string) => Promise<any>;
+  saveScenario: (scenario: {
+    id: string;
+    name: string;
+    version_yn?: boolean;
+  }) => Promise<void>;
+  createScenario: (scenario: Scenario) => Promise<void>;
+  patchScenario: (scenario: Scenario) => Promise<void>;
+  deleteScenario: (scenarioId: string[]) => void;
+  cloneScenario: (scenario: Scenario) => Promise<void>;
 };
 
+/* Zustand 제네릭으로 상태 안전화 */
 // ==========================================================
-// 20260312 - undo/redo 기능 추가 위해 스냅샷 관련 액션 추가
+// undo/redo 기능 추가 위해 스냅샷 관련 액션 추가
 export const makeSnapshot = (state: {
   nodes: Node<any>[];
   edges: Edge<any>[];
@@ -377,9 +352,112 @@ const shouldRecordEdgeChanges = (changes: EdgeChange[]) =>
   });
 // ==========================================================
 
-const useBuilderStore = create<StoreState>((set, get) => ({
-  backend: 'firebase',
+const createReconnectedEdge = (
+  incomingEdge: Edge<any>,
+  outgoingEdge: Edge<any>,
+): Edge<any> => ({
+  ...incomingEdge,
+  id: `reactflow__edge-${incomingEdge.source}${incomingEdge.sourceHandle || ''}-${outgoingEdge.target}${outgoingEdge.targetHandle || ''}`,
+  target: outgoingEdge.target,
+  targetHandle: outgoingEdge.targetHandle ?? null,
+});
 
+const getNodeIdsToRemove = (
+  nodes: Node<any>[],
+  nodeIds: string[],
+  edges: Edge<any>[] = [],
+) => {
+  const removeSet = new Set<string>();
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const outgoingEdgesBySourceId = new Map<string, Edge<any>[]>();
+
+  edges.forEach((edge) => {
+    outgoingEdgesBySourceId.set(edge.source, [
+      ...(outgoingEdgesBySourceId.get(edge.source) || []),
+      edge,
+    ]);
+  });
+
+  const collectNodeAndChildren = (targetId: string) => {
+    if (removeSet.has(targetId)) return;
+
+    const targetNode = nodeById.get(targetId);
+    if (!targetNode) return;
+
+    removeSet.add(targetId);
+
+    if (
+      targetNode.type === 'scenario' ||
+      targetNode.type === 'selectionGroup'
+    ) {
+      nodes
+        .filter((child) => child.parentNode === targetId)
+        .forEach((child) => collectNodeAndChildren(child.id));
+    }
+
+    if (targetNode.type === 'branch') {
+      outgoingEdgesBySourceId
+        .get(targetId)
+        ?.forEach((edge) => collectBranchDescendant(edge.target));
+    }
+  };
+
+  const collectBranchDescendant = (targetId: string) => {
+    if (removeSet.has(targetId)) return;
+
+    collectNodeAndChildren(targetId);
+
+    outgoingEdgesBySourceId
+      .get(targetId)
+      ?.forEach((edge) => collectBranchDescendant(edge.target));
+  };
+
+  nodeIds.forEach(collectNodeAndChildren);
+  return removeSet;
+};
+
+const reconnectEdgesAfterRemoval = (
+  edges: Edge<any>[],
+  removeSet: Set<string>,
+) => {
+  const incomingEdges = edges.filter(
+    (edge) => !removeSet.has(edge.source) && removeSet.has(edge.target),
+  );
+  const outgoingEdges = edges.filter(
+    (edge) => removeSet.has(edge.source) && !removeSet.has(edge.target),
+  );
+  const remainingEdges = edges.filter(
+    (edge) => !removeSet.has(edge.source) && !removeSet.has(edge.target),
+  );
+  const nextEdges = [...remainingEdges];
+  const edgeKey = (edge: Edge<any>) =>
+    [
+      edge.source,
+      edge.sourceHandle ?? null,
+      edge.target,
+      edge.targetHandle ?? null,
+    ].join('|');
+  const existingKeys = new Set(nextEdges.map(edgeKey));
+
+  incomingEdges.forEach((incomingEdge) => {
+    outgoingEdges.forEach((outgoingEdge) => {
+      if (incomingEdge.source === outgoingEdge.target) return;
+
+      const reconnectedEdge = createReconnectedEdge(incomingEdge, outgoingEdge);
+      const key = edgeKey(reconnectedEdge);
+      if (existingKeys.has(key)) return;
+
+      existingKeys.add(key);
+      nextEdges.push(reconnectedEdge);
+    });
+  });
+
+  return { nextEdges, outgoingEdges };
+};
+
+export const useBuilderStore = create<StoreState>((set, get) => ({
+  backend: 'firebase',
+  setBackend: (kind: DB_TYPE) => set({ backend: kind }),
   treeNodes: [],
 
   userInfoJson: userInfo,
@@ -437,6 +515,11 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     }
   },
 
+  scenario: { name: '', description: '' },
+  setScenario: (item: Scenario) => set({ scenario: item }),
+  scenarios: [],
+  setScenarios: (item: Scenario[]) => set({ scenarios: item }),
+
   nodes: [],
   edges: [],
 
@@ -448,11 +531,18 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     set({ edges: newEdges });
   },
 
+  selectedVersionId: null,
+  setSelectedVersionId: (ver_id: string) => {
+    set({ selectedVersionId: ver_id });
+  },
+
   selectedNodeId: null,
   anchorNodeId: null,
   startNodeId: null,
   nodeColors: defaultColors,
   nodeTextColors: defaultTextColors,
+  setNodeColors: (nodeColors) => set({ nodeColors }),
+  setNodeTextColors: (nodeTextColors) => set({ nodeTextColors }),
   slots: {},
   selectedRow: null,
 
@@ -471,100 +561,17 @@ const useBuilderStore = create<StoreState>((set, get) => ({
   setSelectedRow: (row) => set({ selectedRow: row }),
   setSlots: (newSlots) => set({ slots: newSlots }),
 
-  fetchNodeColors: async () => {
-    const docRef = doc(db, 'settings', 'nodeColors');
-    try {
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dbColors = snap.data() as Partial<Record<NodeType, string>>;
-        set({ nodeColors: mergeColors(dbColors, defaultColors) });
-      } else {
-        await setDoc(docRef, defaultColors);
-        set({ nodeColors: defaultColors });
-      }
-    } catch (e) {
-      console.error('Failed to fetch node colors from DB', e);
-    }
-  },
-
-  fetchNodeTextColors: async () => {
-    const docRef = doc(db, 'settings', 'nodeTextColors');
-    try {
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dbTextColors = snap.data() as Partial<Record<NodeType, string>>;
-        set({ nodeTextColors: mergeColors(dbTextColors, defaultTextColors) });
-      } else {
-        await setDoc(docRef, defaultTextColors);
-        set({ nodeTextColors: defaultTextColors });
-      }
-    } catch (e) {
-      console.error('Failed to fetch node text colors from DB', e);
-    }
-  },
-
-  fetchNodeVisibility: async () => {
-    try {
-      const settings = await firebaseApi.fetchNodeVisibility();
-      if (settings && Array.isArray(settings.visibleNodeTypes)) {
-        set({ visibleNodeTypes: settings.visibleNodeTypes as NodeType[] });
-      } else {
-        await firebaseApi.saveNodeVisibility(defaultVisibleNodeTypes);
-        set({ visibleNodeTypes: defaultVisibleNodeTypes });
-      }
-    } catch (e) {
-      console.error('Failed to fetch node visibility:', e);
-      set({ visibleNodeTypes: defaultVisibleNodeTypes });
-    }
-  },
-
-  setNodeVisibility: async (nodeType, isVisible) => {
-    const current = get().visibleNodeTypes;
-    const s = new Set(current);
-    isVisible ? s.add(nodeType) : s.delete(nodeType);
-    const next = Array.from(s) as NodeType[];
-    set({ visibleNodeTypes: next });
-    try {
-      await firebaseApi.saveNodeVisibility(next);
-    } catch (e) {
-      console.error('Failed to save node visibility:', e);
-    }
-  },
-
-  setNodeColor: async (type, color) => {
-    const newColors: ColorMap = { ...get().nodeColors, [type]: color };
-    set({ nodeColors: newColors });
-    try {
-      await setDoc(doc(db, 'settings', 'nodeColors'), newColors);
-    } catch (e) {
-      console.error('Failed to save node colors to DB', e);
-    }
-  },
-
-  setNodeTextColor: async (type, color) => {
-    const newColors: ColorMap = { ...get().nodeTextColors, [type]: color };
-    set({ nodeTextColors: newColors });
-      try {
-        await setDoc(doc(db, 'settings', 'nodeTextColors'), newColors);
-      } catch (e) {
-        console.error('Failed to save node text colors to DB', e);
-      }
-    },
-    // 20260316 - 노드 이동 시 edges의 start좌표, end좌표도 같이 이동 하도록 수정
-    onNodesChange: (changes) => {
+  onNodesChange: (changes) => {
     if (shouldRecordNodeChanges(changes)) {
       useBuilderHistoryStore.getState().push(makeSnapshot(get()));
     }
-
     const prevNodes = get().nodes;
     const prevEdges = get().edges;
     const nextNodes = applyNodeChanges(changes, prevNodes);
 
     const movedChanges = (changes as any[]).filter(
       (change: any) =>
-        change?.type === 'position' &&
-        change?.position &&
-        change?.dragging
+        change?.type === 'position' && change?.position && change?.dragging,
     );
 
     if (movedChanges.length === 0) {
@@ -602,10 +609,8 @@ const useBuilderStore = create<StoreState>((set, get) => ({
         return edge;
       }
 
-      const dx =
-        sameDelta?.dx ?? sourceDelta?.dx ?? targetDelta?.dx ?? 0;
-      const dy =
-        sameDelta?.dy ?? sourceDelta?.dy ?? targetDelta?.dy ?? 0;
+      const dx = sameDelta?.dx ?? sourceDelta?.dx ?? targetDelta?.dx ?? 0;
+      const dy = sameDelta?.dy ?? sourceDelta?.dy ?? targetDelta?.dy ?? 0;
 
       return {
         ...edge,
@@ -634,16 +639,36 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       edges: nextEdges,
     });
   },
-
   onEdgesChange: (changes) => {
     if (shouldRecordEdgeChanges(changes)) {
       useBuilderHistoryStore.getState().push(makeSnapshot(get()));
     }
-    set({ edges: applyEdgeChanges(changes, get().edges) })
+    set({ edges: applyEdgeChanges(changes, get().edges) });
   },
   onConnect: (connection) => {
+    // edge 중복 연결
+    // useBuilderHistoryStore.getState().push(makeSnapshot(get()));
+    // set({ edges: addEdge(connection, get().edges) });
+
+    // edge 중복 연결 방지
+    const currentEdges = get().edges;
+
+    // 동일한 노드의 동일한 source handle에 연결된 edge가 있는지 확인
+    const sourceHandleAlreadyConnected = currentEdges.some(
+      (edge) =>
+        edge.source === connection.source &&
+        (edge.sourceHandle ?? null) === (connection.sourceHandle ?? null),
+    );
+
+    if (sourceHandleAlreadyConnected) {
+      return;
+    }
+
     useBuilderHistoryStore.getState().push(makeSnapshot(get()));
-    set({ edges: addEdge(connection, get().edges) });
+
+    set({
+      edges: addEdge(connection, currentEdges),
+    });
   },
 
   setSelectedNodeId: (nodeId) => set({ selectedNodeId: nodeId }),
@@ -655,73 +680,58 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       const nodeToDelete = state.nodes.find((n) => n.id === nodeId);
       if (!nodeToDelete) return state;
 
-      const nodesToRemove: string[] = [nodeId];
-      if (nodeToDelete.type === 'scenario' || nodeToDelete.type === 'selectionGroup') {
-        state.nodes
-          .filter((n) => n.parentNode === nodeId)
-          .forEach((child) => nodesToRemove.push(child.id));
-      }
-
-      const removeSet = new Set(nodesToRemove);
+      const removeSet = getNodeIdsToRemove(state.nodes, [nodeId], state.edges);
       const remainingNodes = state.nodes.filter((n) => !removeSet.has(n.id));
-      const remainingEdges = state.edges.filter(
-        (e) => !removeSet.has(e.source) && !removeSet.has(e.target)
+      const { nextEdges, outgoingEdges } = reconnectEdgesAfterRemoval(
+        state.edges,
+        removeSet,
       );
 
       return {
         nodes: remainingNodes,
-        edges: remainingEdges,
-        selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
-        startNodeId: state.startNodeId === nodeId ? null : state.startNodeId,
-      };
-    });
-  },
-  
-  deleteNodesByIds: (nodeIds) => {
-    if (!nodeIds.length) return;
-
-    useBuilderHistoryStore.getState().push(makeSnapshot(get()));
-
-    set((state) => {
-      const removeSet = new Set<string>();
-
-      const collectNodeAndChildren = (targetId: string) => {
-        if (removeSet.has(targetId)) return;
-
-        const targetNode = state.nodes.find((node) => node.id === targetId);
-        if (!targetNode) return;
-
-        removeSet.add(targetId);
-
-        if (targetNode.type === "scenario" || targetNode.type === "selectionGroup") {
-          state.nodes
-            .filter((child) => child.parentNode === targetId)
-            .forEach((child) => collectNodeAndChildren(child.id));
-        }
-      };
-
-      nodeIds.forEach(collectNodeAndChildren);
-
-      const remainingNodes = state.nodes.filter((node) => !removeSet.has(node.id));
-      const remainingEdges = state.edges.filter(
-        (edge) => !removeSet.has(edge.source) && !removeSet.has(edge.target)
-      );
-
-      return {
-        nodes: remainingNodes,
-        edges: remainingEdges,
+        edges: nextEdges,
         selectedNodeId:
           state.selectedNodeId && removeSet.has(state.selectedNodeId)
             ? null
             : state.selectedNodeId,
         startNodeId:
           state.startNodeId && removeSet.has(state.startNodeId)
-            ? null
+            ? outgoingEdges[0]?.target || null
             : state.startNodeId,
       };
     });
   },
 
+  deleteNodesByIds: (nodeIds) => {
+    if (!nodeIds.length) return;
+
+    useBuilderHistoryStore.getState().push(makeSnapshot(get()));
+
+    set((state) => {
+      const removeSet = getNodeIdsToRemove(state.nodes, nodeIds, state.edges);
+
+      const remainingNodes = state.nodes.filter(
+        (node) => !removeSet.has(node.id),
+      );
+      const { nextEdges, outgoingEdges } = reconnectEdgesAfterRemoval(
+        state.edges,
+        removeSet,
+      );
+
+      return {
+        nodes: remainingNodes,
+        edges: nextEdges,
+        selectedNodeId:
+          state.selectedNodeId && removeSet.has(state.selectedNodeId)
+            ? null
+            : state.selectedNodeId,
+        startNodeId:
+          state.startNodeId && removeSet.has(state.startNodeId)
+            ? outgoingEdges[0]?.target || null
+            : state.startNodeId,
+      };
+    });
+  },
 
   toggleScenarioNode: (nodeId) => {
     set((state) => {
@@ -740,11 +750,10 @@ const useBuilderStore = create<StoreState>((set, get) => ({
           } else {
             const children = state.nodes.filter((c) => c.parentNode === nodeId);
             if (children.length) {
-              let minX = Infinity;
-              let minY = Infinity;
-              let maxX = 0;
-              let maxY = 0;
-
+              let minX = Infinity,
+                minY = Infinity,
+                maxX = 0,
+                maxY = 0;
               children.forEach((c) => {
                 const x = c.position.x;
                 const y = c.position.y;
@@ -755,7 +764,6 @@ const useBuilderStore = create<StoreState>((set, get) => ({
                 maxX = Math.max(maxX, x + w);
                 maxY = Math.max(maxY, y + h);
               });
-
               nextStyle.width = maxX - minX + PADDING * 2;
               nextStyle.height = maxY - minY + PADDING * 2;
 
@@ -768,14 +776,24 @@ const useBuilderStore = create<StoreState>((set, get) => ({
               nextStyle.height = 100;
             }
           }
-
           return { ...n, style: nextStyle, data: { ...n.data, isCollapsed } };
         }
-
         return n;
       });
+      const nextEdges = state.edges.map((edge) => {
+        if (edge.source !== nodeId && edge.target !== nodeId) return edge;
+        if (!edge.data?.points) return edge;
 
-      return { nodes: newNodes };
+        const nextData = { ...edge.data };
+        delete nextData.points;
+
+        return {
+          ...edge,
+          data: Object.keys(nextData).length > 0 ? nextData : undefined,
+        };
+      });
+
+      return { nodes: newNodes, edges: nextEdges };
     });
   },
 
@@ -789,7 +807,10 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     const original = nodes.find((n) => n.id === nodeId);
     if (!original) return;
 
-    const maxZ = nodes.reduce((m, n) => Math.max((n.zIndex as number) || 0, m), 0);
+    const maxZ = nodes.reduce(
+      (m, n) => Math.max((n.zIndex as number) || 0, m),
+      0,
+    );
     const newData = JSON.parse(JSON.stringify(original.data ?? {}));
     const newNode: Node<any> = {
       ...original,
@@ -797,7 +818,7 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       position: { x: original.position.x + 50, y: original.position.y + 50 },
       data: newData,
       selected: false,
-      zIndex: maxZ + 1,
+      zIndex: (maxZ + 1) as any,
     };
     set({ nodes: [...nodes, newNode] });
     get().setSelectedNodeId(newNode.id);
@@ -808,7 +829,9 @@ const useBuilderStore = create<StoreState>((set, get) => ({
 
     set((state) => ({
       nodes: state.nodes.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...(n.data ?? {}), ...dataUpdate } } : n
+        n.id === nodeId
+          ? { ...n, data: { ...(n.data ?? {}), ...dataUpdate } }
+          : n,
       ),
     }));
   },
@@ -821,20 +844,29 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     set({ nodes: [...get().nodes, newNode] });
   },
 
+  /* 이하 폼/리플라이 관련 로직은 원본 유지, 파라미터만 타입 지정 */
   addReply: (nodeId) => {
     set((state) => ({
       nodes: state.nodes.map((n) => {
         if (n.id !== nodeId) return n;
         const t = n.type as NodeType;
         const label =
-          t === 'branch' ? 'New Condition' : t === 'fixedmenu' ? 'New Menu' : 'New Reply';
-        const prefix = t === 'branch' ? 'cond' : t === 'fixedmenu' ? 'menu' : 'val';
+          t === 'branch'
+            ? 'New Condition'
+            : t === 'fixedmenu'
+              ? 'New Menu'
+              : 'New Reply';
+        const prefix =
+          t === 'branch' ? 'cond' : t === 'fixedmenu' ? 'menu' : 'val';
         const newReply = {
           display: label,
           value: `${prefix}_${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         };
-        const replies = Array.isArray(n.data?.replies) ? n.data.replies : [];
-        return { ...n, data: { ...(n.data ?? {}), replies: [...replies, newReply] } };
+        const replies = Array.isArray(n.data?.replies) ? n.data!.replies : [];
+        return {
+          ...n,
+          data: { ...(n.data ?? {}), replies: [...replies, newReply] },
+        };
       }),
     }));
   },
@@ -843,7 +875,9 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     set((state) => ({
       nodes: state.nodes.map((n) => {
         if (n.id !== nodeId) return n;
-        const replies = Array.isArray(n.data?.replies) ? [...n.data.replies] : [];
+        const replies = Array.isArray(n.data?.replies)
+          ? [...n.data!.replies]
+          : [];
         if (!replies[index]) return n;
         replies[index] = { ...replies[index], [part]: value };
         return { ...n, data: { ...(n.data ?? {}), replies } };
@@ -856,7 +890,7 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       nodes: state.nodes.map((n) => {
         if (n.id !== nodeId) return n;
         const replies = Array.isArray(n.data?.replies)
-          ? n.data.replies.filter((_: any, i: number) => i !== index)
+          ? n.data!.replies.filter((_: any, i: number) => i !== index)
           : [];
         return { ...n, data: { ...(n.data ?? {}), replies } };
       }),
@@ -868,8 +902,13 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       nodes: state.nodes.map((n) => {
         if (n.id !== nodeId || n.type !== 'form') return n;
         const el = createFormElement(elementType);
-        const elements = Array.isArray(n.data?.elements) ? n.data.elements : [];
-        return { ...n, data: { ...(n.data ?? {}), elements: [...elements, el] } };
+        const elements = Array.isArray(n.data?.elements)
+          ? n.data!.elements
+          : [];
+        return {
+          ...n,
+          data: { ...(n.data ?? {}), elements: [...elements, el] },
+        };
       }),
     }));
   },
@@ -878,7 +917,9 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     set((state) => ({
       nodes: state.nodes.map((n) => {
         if (n.id !== nodeId || n.type !== 'form') return n;
-        const elements = Array.isArray(n.data?.elements) ? [...n.data.elements] : [];
+        const elements = Array.isArray(n.data?.elements)
+          ? [...n.data!.elements]
+          : [];
         const oldEl = elements[elementIndex];
         if (!oldEl) return n;
         const nextEl = { ...oldEl, ...elementUpdate };
@@ -891,8 +932,8 @@ const useBuilderStore = create<StoreState>((set, get) => ({
           const newRows = nextEl.rows || 2;
           const newCols = nextEl.columns || 2;
           const newData = Array(newRows * newCols).fill('');
-          for (let r = 0; r < Math.min(oldEl.rows || 0, newRows); r += 1) {
-            for (let c = 0; c < Math.min(oldEl.columns || 0, newCols); c += 1) {
+          for (let r = 0; r < Math.min(oldEl.rows || 0, newRows); r++) {
+            for (let c = 0; c < Math.min(oldEl.columns || 0, newCols); c++) {
               const oi = r * (oldEl.columns || 0) + c;
               const ni = r * newCols + c;
               if (oldData[oi] !== undefined) newData[ni] = oldData[oi];
@@ -912,7 +953,7 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       nodes: state.nodes.map((n) => {
         if (n.id !== nodeId || n.type !== 'form') return n;
         const elements = Array.isArray(n.data?.elements)
-          ? n.data.elements.filter((_: any, i: number) => i !== elementIndex)
+          ? n.data!.elements.filter((_: any, i: number) => i !== elementIndex)
           : [];
         return { ...n, data: { ...(n.data ?? {}), elements } };
       }),
@@ -937,7 +978,9 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     set((state) => ({
       nodes: state.nodes.map((n) => {
         if (n.id !== nodeId || n.type !== 'form') return n;
-        const elements = Array.isArray(n.data?.elements) ? [...n.data.elements] : [];
+        const elements = Array.isArray(n.data?.elements)
+          ? [...n.data!.elements]
+          : [];
         const [removed] = elements.splice(startIndex, 1);
         elements.splice(endIndex, 0, removed);
         return { ...n, data: { ...(n.data ?? {}), elements } };
@@ -948,12 +991,21 @@ const useBuilderStore = create<StoreState>((set, get) => ({
   exportSelectedNodes: (selectedNodes) => {
     const { edges } = get();
     const ids = new Set(selectedNodes.map((n) => n.id));
-    const relevantEdges = edges.filter((e) => ids.has(e.source) && ids.has(e.target));
-    const json = JSON.stringify({ nodes: selectedNodes, edges: relevantEdges }, null, 2);
+    const relevantEdges = edges.filter(
+      (e) => ids.has(e.source) && ids.has(e.target),
+    );
+    const json = JSON.stringify(
+      { nodes: selectedNodes, edges: relevantEdges },
+      null,
+      2,
+    );
 
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(json)
-        .then(() => alert(`${selectedNodes.length} nodes exported to clipboard!`))
+      navigator.clipboard
+        .writeText(json)
+        .then(() =>
+          alert(`${selectedNodes.length} nodes exported to clipboard!`),
+        )
         .catch((err) => {
           console.error('Clipboard API failed: ', err);
           alert(`Failed to export nodes: ${err.message}`);
@@ -970,7 +1022,9 @@ const useBuilderStore = create<StoreState>((set, get) => ({
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        alert(`${selectedNodes.length} nodes exported to clipboard (fallback).`);
+        alert(
+          `${selectedNodes.length} nodes exported to clipboard (fallback).`,
+        );
       } catch (err) {
         console.error('Fallback export failed: ', err);
         alert('Failed to export nodes.');
@@ -984,17 +1038,25 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     try {
       const text = await navigator.clipboard.readText();
       const parsed = JSON.parse(text);
-      if (!parsed.nodes || !Array.isArray(parsed.nodes)) throw new Error('Invalid data format');
+      if (!parsed.nodes || !Array.isArray(parsed.nodes))
+        throw new Error('Invalid data format');
 
       const { nodes: curNodes, edges: curEdges } = get();
       const map = new Map<string, string>();
 
-      const newNodes: Node<any>[] = parsed.nodes.map((node: Node<any>, i: number) => {
-        const oldId = node.id;
-        const newId = `${node.type}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${i}`;
-        map.set(oldId, newId);
-        return { ...node, id: newId, position: { x: node.position.x + 20, y: node.position.y + 20 }, selected: false };
-      });
+      const newNodes: Node<any>[] = parsed.nodes.map(
+        (node: Node<any>, i: number) => {
+          const oldId = node.id;
+          const newId = `${node.type}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${i}`;
+          map.set(oldId, newId);
+          return {
+            ...node,
+            id: newId,
+            position: { x: node.position.x + 20, y: node.position.y + 20 },
+            selected: false,
+          };
+        },
+      );
 
       const newEdges: Edge<any>[] = (parsed.edges ?? [])
         .map((e: Edge<any>) => {
@@ -1012,7 +1074,10 @@ const useBuilderStore = create<StoreState>((set, get) => ({
         })
         .filter(Boolean) as Edge<any>[];
 
-      set({ nodes: [...curNodes, ...newNodes], edges: [...curEdges, ...newEdges] });
+      set({
+        nodes: [...curNodes, ...newNodes],
+        edges: [...curEdges, ...newEdges],
+      });
       alert(`${newNodes.length} nodes imported successfully!`);
     } catch (err) {
       console.error('Failed to import nodes: ', err);
@@ -1020,20 +1085,21 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     }
   },
 
-  addScenarioAsGroup: async (backend, scenario, position) => {
+  addScenarioAsGroup: async (scenario, position) => {
     const { nodes: curNodes, edges: curEdges } = get();
-    const data = await backendService.fetchScenarioData(backend, { scenarioId: scenario.id });
+    const data = await fetchScenarioData(get().backend, {scenarioId: scenario.id});
     if (!data?.nodes?.length) {
-      alert(`Failed to load scenario data for '${scenario.name}' or it is empty.`);
+      alert(
+        `Failed to load scenario data for '${scenario.name}' or it is empty.`,
+      );
       return;
     }
 
     const PADDING = 40;
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = 0;
-    let maxY = 0;
-
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = 0,
+      maxY = 0;
     data.nodes.forEach((n: Node<any>) => {
       minX = Math.min(minX, n.position.x);
       minY = Math.min(minY, n.position.y);
@@ -1057,7 +1123,10 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       return {
         ...n,
         id: newId,
-        position: { x: n.position.x - minX + PADDING, y: n.position.y - minY + PADDING },
+        position: {
+          x: n.position.x - minX + PADDING,
+          y: n.position.y - minY + PADDING,
+        },
         parentNode: groupId,
         extent: 'parent',
       };
@@ -1067,8 +1136,14 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       id: groupId,
       type: 'scenario',
       position: groupPos,
-      data: { label: scenario.name, scenarioId: scenario.id, isCollapsed: false },
-      style: { width: groupW, height: groupH },
+      data: {
+        label: scenario.name,
+        scenarioId: scenario.id,
+        isCollapsed: false,
+      },
+      // 20260715 - 노드를 숨기고 모달 팝업에서 시나리오 뷰어를 보이도록 변경 처리
+      // 시나리오 그룹 노드의 크기를 자식 노드들의 범위에 맞게 설정
+      // style: { width: groupW, height: groupH },
     };
 
     const newEdges: Edge<any>[] = (data.edges ?? []).map((e: Edge<any>) => ({
@@ -1078,15 +1153,20 @@ const useBuilderStore = create<StoreState>((set, get) => ({
       target: map.get(e.target)!,
     }));
 
-    set({ nodes: [...curNodes, groupNode, ...childNodes], edges: [...curEdges, ...newEdges] });
+    set({
+      nodes: [...curNodes, groupNode, ...childNodes],
+      edges: [...curEdges, ...newEdges],
+    });
   },
 
   ...createGroupActionStore(set, get),
   ...createEdgeControlActionStore(set, get),
-  
+
   undo: () => {
     const current = get();
-    const snapshot = useBuilderHistoryStore.getState().undoSnapshot(makeSnapshot(current));
+    const snapshot = useBuilderHistoryStore
+      .getState()
+      .undoSnapshot(makeSnapshot(current));
     if (!snapshot) return;
 
     set({
@@ -1099,7 +1179,9 @@ const useBuilderStore = create<StoreState>((set, get) => ({
 
   redo: () => {
     const current = get();
-    const snapshot = useBuilderHistoryStore.getState().redoSnapshot(makeSnapshot(current));
+    const snapshot = useBuilderHistoryStore
+      .getState()
+      .redoSnapshot(makeSnapshot(current));
     if (!snapshot) return;
 
     set({
@@ -1110,15 +1192,33 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     });
   },
 
-  fetchScenario: async (backend, scenarioId) => {
+  fetchScenarios: async (options: any) => {
     try {
-      const data = await backendService.fetchScenarioData(backend, { scenarioId });
+      const datas = await fetchScenarios(get().backend, options);
+      set({ scenarios: datas });
+      return datas;
+    } catch (e) {
+      console.error('Error fetching scenarios:', e);
+      alert('Failed to load scenario details.');
+      set({ nodes: [], edges: [], selectedNodeId: null, startNodeId: null });
+    }
+  },
+  fetchScenario: async (scenarioId) => {
+    console.log("여기와야지? ===>", scenarioId)
+    try {
+      const data = await fetchScenarioData(get().backend, { scenarioId });
+    console.log("fetch data ===>", data)
+      const loadedNodes = (data.nodes ?? []) as Node<any>[];
+      const rawEdges = (data.edges ?? []) as Edge<any>[];
+      const cleanEdges = sanitizeEdgesForSave(rawEdges, loadedNodes);
+
       set({
-        nodes: (data.nodes ?? []) as Node<any>[],
-        edges: (data.edges ?? []) as Edge<any>[],
+        nodes: loadedNodes,
+        edges: cleanEdges,
         selectedNodeId: null,
         startNodeId: (data.startNodeId ?? null) as string | null,
       });
+      return data;
     } catch (e) {
       console.error('Error fetching scenario:', e);
       alert('Failed to load scenario details.');
@@ -1126,24 +1226,67 @@ const useBuilderStore = create<StoreState>((set, get) => ({
     }
   },
 
-  saveScenario: async (backend, scenario) => {
+  saveScenario: async (scenario) => {
     try {
       const { nodes, edges, startNodeId } = get();
-      console.log("nodes: ", nodes);
-      await backendService.saveScenarioData(backend, {
+      // console.log('Saving scenario with nodes:', nodes);
+      await saveScenarioData(get().backend, {
         scenario,
         data: {
           nodes: sanitizeNodesForSave(nodes),
-          edges: sanitizeEdgesForSave(edges),
+          edges: sanitizeEdgesForSave(edges, nodes),
           startNodeId,
         },
       });
-      alert(`Scenario '${scenario.name}' has been saved successfully!`);
+      alert(
+        `Scenario '${scenario.name}' has been ${scenario.version_yn ? 'versioned' : 'saved'} successfully!`,
+      );
     } catch (e: any) {
       console.error('Error saving scenario:', e);
       alert(`Failed to save scenario: ${e?.message ?? 'unknown error'}`);
     }
   },
-}));
 
-export default useBuilderStore;
+  createScenario: async (scenario) => {
+    try {
+      const res = await createScenario(get().backend, scenario);
+      alert(`Scenario '${scenario.name}' has been saved successfully!`);
+      return res;
+    } catch (e: any) {
+      console.error('Error saving scenario:', e);
+      alert(`Failed to save scenario: ${e?.message ?? 'unknown error'}`);
+    }
+  },
+
+  patchScenario: async (scenario) => {
+    try {
+      // console.log('Patching scenario with data === > :', scenario);
+      const res = await patchScenario(get().backend, scenario);
+      // await showAlert("info", "success", `Scenario '${scenario.name}' has been saved successfully!`);
+      return res;
+    } catch (e: any) {
+      console.error('Error saving scenario:', e);
+      alert(`Failed to save scenario: ${e?.message ?? 'unknown error'}`);
+    }
+  },
+
+  deleteScenario: async (scenarioId: string[]) => {
+    try {
+      await deleteScenario(get().backend, scenarioId);
+      alert(`Scenario '${scenarioId}' has been saved successfully!`);
+    } catch (e: any) {
+      console.error('Error delete scenario:', e);
+      alert(`Failed to delete scenario: ${e?.message ?? 'unknown error'}`);
+    }
+  },
+
+  cloneScenario: async (scenario) => {
+    try {
+      await cloneScenario(get().backend, scenario);
+      alert(`Scenario '${scenario.name}' has been clone successfully!`);
+    } catch (e: any) {
+      console.error('Error clone scenario:', e);
+      alert(`Failed to clone scenario: ${e?.message ?? 'unknown error'}`);
+    }
+  },
+}));

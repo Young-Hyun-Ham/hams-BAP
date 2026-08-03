@@ -1,14 +1,18 @@
 // (Handle, Position 임포트 제거)
 import styles from './ChatNodes.module.css';
-import useBuilderStore from '../../store/index';
+import { useBuilderStore } from '../../store/index';
 // (AnchorIcon, StartNodeIcon 임포트 제거)
 import { SetSlotIcon } from '../icons/Icons';
 import NodeWrapper from './NodeWrapper';
+import { useTranslation } from 'react-i18next';
 
 function SetSlotNode({ id, data }) {
+  const { t } = useTranslation();
   // 3. 공통 로직 제거
-  const nodeColor = useBuilderStore((state) => state.nodeColors.setSlot) || '#8e44ad';
-  const textColor = useBuilderStore((state) => state.nodeTextColors.setSlot) || '#ffffff';
+  const nodeColor =
+    useBuilderStore((state) => state.nodeColors.setSlot) || '#8e44ad';
+  const textColor =
+    useBuilderStore((state) => state.nodeTextColors.setSlot) || '#ffffff';
 
   // (isAnchored, isStartNode 로직 제거)
 
@@ -23,14 +27,17 @@ function SetSlotNode({ id, data }) {
     >
       {/* 6. 기존 nodeBody의 내용만 children으로 전달 */}
       <div className={styles.section}>
-        <span className={styles.sectionTitle}>Assignments</span>
+        <span className={styles.sectionTitle}>{t('Assignments')}</span>
         {(data.assignments || []).map((assign, index) => (
           <div key={index} className={styles.previewBox}>
-            <span style={{fontWeight: 'bold'}}>{assign.key}</span> = <span>{assign.value}</span>
+            <span style={{ fontWeight: 'bold' }}>{assign.key}</span> ={' '}
+            <span>{assign.value}</span>
           </div>
         ))}
         {(!data.assignments || data.assignments.length === 0) && (
-          <div className={styles.formElementsPlaceholder}>No assignments configured.</div>
+          <div className={styles.formElementsPlaceholder}>
+            {t('No assignments configured')}.
+          </div>
         )}
       </div>
     </NodeWrapper>

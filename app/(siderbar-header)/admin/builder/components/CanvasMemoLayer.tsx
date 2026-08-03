@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { CanvasMemoItem } from "./CanvasMemoItem";
+import { CanvasMemoItem } from './CanvasMemoItem';
 
 type MemoCanvasItem = {
   id: string;
@@ -48,19 +48,19 @@ export default function CanvasMemoLayer({
   return (
     <div
       style={{
-        position: "absolute",
+        position: 'absolute',
         inset: 0,
-        overflow: "hidden",
-        pointerEvents: "none",
+        overflow: 'hidden',
+        pointerEvents: 'none',
       }}
     >
       <div
         style={{
-          position: "absolute",
+          position: 'absolute',
           inset: 0,
           transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-          transformOrigin: "0 0",
-          pointerEvents: "none",
+          transformOrigin: '0 0',
+          pointerEvents: 'none',
         }}
       >
         {memoNodes.map((memo) => (

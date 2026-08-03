@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react';
 import ElementPropertyEditor from './ElementPropertyEditor';
 import { useFormEditorStore } from '../stores/useFormEditorStore';
 import { FORM_ELEMENT_REGISTRY } from '../stores/elementRegistry';
-import useBuilderStore from '../../builder/store';
+import { useBuilderStore } from '../../builder/store';
 
 function SectionHeader({
   color,

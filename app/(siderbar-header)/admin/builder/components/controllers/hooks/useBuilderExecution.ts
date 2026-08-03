@@ -1,17 +1,17 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import useBuilderStore from "../../../store/index";
+import { useBuilderStore } from '../../../store/index';
 import {
   builderExecutionStore,
   type ExecutionLog,
   type ExecutionPhase,
-} from "../../../store/builderExecutionStore";
+} from '../../../store/builderExecutionStore';
 import {
   evaluateCondition,
   getNestedValue,
   interpolateMessage,
-} from "../../../utils/simulatorUtils";
-import { GOOGLE_GEMINI_API_KEY } from "@/lib/gemini";
+} from '../../../utils/simulatorUtils';
 
 type BuilderNode = {
   id: string;
@@ -45,6 +45,7 @@ type FormElement = {
   id?: string;
   name?: string;
   type?: string;
+  selectKind?: string;
   defaultValue?: unknown;
 };
 
@@ -57,19 +58,17 @@ const wait = (ms: number) =>
     setTimeout(resolve, ms);
   });
 
-export function useBuilderExecution({
-  nodes,
-  edges,
-}: UseBuilderExecutionArgs) {
+export function useBuilderExecution({ nodes, edges }: UseBuilderExecutionArgs) {
+  const { t } = useTranslation();
   const startNodeId = useBuilderStore((state: any) => state.startNodeId);
   const anchorNodeId = useBuilderStore((state: any) => state.anchorNodeId);
   const setSlots = useBuilderStore((state: any) => state.setSlots);
 
   const openBranchSelection = builderExecutionStore(
-    (state) => state.openBranchSelection
+    (state) => state.openBranchSelection,
   );
   const closeBranchSelection = builderExecutionStore(
-    (state) => state.closeBranchSelection
+    (state) => state.closeBranchSelection,
   );
   const openFormInput = builderExecutionStore((state) => state.openFormInput);
   const closeFormInput = builderExecutionStore((state) => state.closeFormInput);
@@ -87,35 +86,41 @@ export function useBuilderExecution({
   // 선택 대기 함수
   const requestBranchSelection = useCallback(
     (node: BuilderNode, replies: Array<{ display: string; value: string }>) => {
-      return new Promise<{ display: string; value: string } | null>((resolve) => {
-        pendingBranchNodeRef.current = node;
-        branchSelectionResolverRef.current = resolve;
+      return new Promise<{ display: string; value: string } | null>(
+        (resolve) => {
+          pendingBranchNodeRef.current = node;
+          branchSelectionResolverRef.current = resolve;
 
-        openBranchSelection({
-          nodeId: node.id,
-          nodeType: node.type,
-          title: node.data?.content ?? "분기 선택",
-          replies,
-        });
-      });
+          openBranchSelection({
+            nodeId: node.id,
+            nodeType: node.type,
+            title: node.data?.content ?? t('Select Branch'),
+            replies,
+          });
+        },
+      );
     },
-    [openBranchSelection]
+    [openBranchSelection],
   );
 
-  const selectBranchReply = useCallback((replyValue: string) => {
-    const node = pendingBranchNodeRef.current;
-    if (!node) return;
+  const selectBranchReply = useCallback(
+    (replyValue: string) => {
+      const node = pendingBranchNodeRef.current;
+      if (!node) return;
 
-    const replies = node.data?.replies ?? [];
-    const selectedReply = replies.find((r: any) => r?.value === replyValue) ?? null;
+      const replies = node.data?.replies ?? [];
+      const selectedReply =
+        replies.find((r: any) => r?.value === replyValue) ?? null;
 
-    const resolve = branchSelectionResolverRef.current;
-    branchSelectionResolverRef.current = null;
-    pendingBranchNodeRef.current = null;
-    closeBranchSelection();
+      const resolve = branchSelectionResolverRef.current;
+      branchSelectionResolverRef.current = null;
+      pendingBranchNodeRef.current = null;
+      closeBranchSelection();
 
-    resolve?.(selectedReply);
-  }, [closeBranchSelection]);
+      resolve?.(selectedReply);
+    },
+    [closeBranchSelection],
+  );
 
   const cancelBranchReplySelection = useCallback(() => {
     const resolve = branchSelectionResolverRef.current;
@@ -131,34 +136,43 @@ export function useBuilderExecution({
       const initialValues: FormInputValues = {};
       const elements = node.data?.elements ?? [];
 
-      elements.forEach((element: FormElement) => {
-        const key = element?.name || element?.id;
+      elements.forEach((element: FormElement, index: number) => {
+        const key =
+          element?.name?.trim() ||
+          element?.id ||
+          `${element?.type || 'element'}-${index}`;
         if (!key) return;
 
-        if (element.type === "checkbox") {
+        if (element.type === 'checkbox') {
           initialValues[key] = Array.isArray(element.defaultValue)
             ? element.defaultValue
             : [];
           return;
         }
 
-        if (
-          element.defaultValue !== undefined &&
-          element.defaultValue !== ""
-        ) {
+        if (element.type === 'dropbox' && element.selectKind === 'multi') {
+          initialValues[key] = Array.isArray(element.defaultValue)
+            ? element.defaultValue
+            : element.defaultValue
+              ? [element.defaultValue]
+              : [];
+          return;
+        }
+
+        if (element.defaultValue !== undefined && element.defaultValue !== '') {
           initialValues[key] = interpolateMessage(
             String(element.defaultValue),
-            currentSlots
+            currentSlots,
           );
           return;
         }
 
-        initialValues[key] = "";
+        initialValues[key] = '';
       });
 
       return initialValues;
     },
-    []
+    [],
   );
 
   const requestFormInput = useCallback(
@@ -173,14 +187,15 @@ export function useBuilderExecution({
         openFormInput({
           nodeId: node.id,
           nodeType: node.type,
-          title: node.data?.title ?? "Form input",
+          title: node.data?.title ?? t('Form input'),
           slotKey: node.data?.slotKey,
           elements,
           initialValues,
+          slots: currentSlots,
         });
       });
     },
-    [getInitialFormValues, openFormInput]
+    [getInitialFormValues, openFormInput],
   );
 
   const submitFormInput = useCallback(
@@ -192,7 +207,7 @@ export function useBuilderExecution({
 
       resolve?.(values);
     },
-    [closeFormInput]
+    [closeFormInput],
   );
 
   const cancelFormInput = useCallback(() => {
@@ -204,31 +219,26 @@ export function useBuilderExecution({
     resolve?.(null);
   }, [closeFormInput]);
 
-
   const executionRunning = builderExecutionStore(
-    (state) => state.executionRunning
+    (state) => state.executionRunning,
   );
-  const resetExecution = builderExecutionStore(
-    (state) => state.resetExecution
-  );
-  const startExecution = builderExecutionStore(
-    (state) => state.startExecution
-  );
+  const resetExecution = builderExecutionStore((state) => state.resetExecution);
+  const startExecution = builderExecutionStore((state) => state.startExecution);
   const setExecutionCurrentNode = builderExecutionStore(
-    (state) => state.setExecutionCurrentNode
+    (state) => state.setExecutionCurrentNode,
   );
   const markExecutionCompleted = builderExecutionStore(
-    (state) => state.markExecutionCompleted
+    (state) => state.markExecutionCompleted,
   );
   const appendExecutionLog = builderExecutionStore(
-    (state) => state.appendExecutionLog
+    (state) => state.appendExecutionLog,
   );
   const finishExecution = builderExecutionStore(
-    (state) => state.finishExecution
+    (state) => state.finishExecution,
   );
   const failExecution = builderExecutionStore((state) => state.failExecution);
   const cancelExecution = builderExecutionStore(
-    (state) => state.cancelExecution
+    (state) => state.cancelExecution,
   );
 
   const cancelRef = useRef(false);
@@ -244,18 +254,18 @@ export function useBuilderExecution({
 
       appendExecutionLog(entry);
 
-      if (phase === "error") {
-        console.error("[builder-execution]", entry);
+      if (phase === 'error') {
+        console.error('[builder-execution]', entry);
       } else {
         // console.log("[builder-execution]", entry);
       }
     },
-    [appendExecutionLog]
+    [appendExecutionLog],
   );
 
   const assertNotCanceled = useCallback(() => {
     if (cancelRef.current) {
-      throw new Error("Execution canceled by user.");
+      throw new Error('Execution canceled by user.');
     }
   }, []);
 
@@ -264,7 +274,7 @@ export function useBuilderExecution({
       if (!nodeId) return null;
       return nodes.find((node) => node.id === nodeId) ?? null;
     },
-    [nodes]
+    [nodes],
   );
 
   const findNextNode = useCallback(
@@ -274,8 +284,7 @@ export function useBuilderExecution({
       if (sourceHandle) {
         nextEdge = edges.find(
           (edge) =>
-            edge.source === sourceNodeId &&
-            edge.sourceHandle === sourceHandle
+            edge.source === sourceNodeId && edge.sourceHandle === sourceHandle,
         );
       }
 
@@ -283,26 +292,56 @@ export function useBuilderExecution({
         nextEdge =
           edges.find(
             (edge) =>
-              edge.source === sourceNodeId &&
-              edge.sourceHandle === "default"
+              edge.source === sourceNodeId && edge.sourceHandle === 'default',
           ) ||
           edges.find(
             (edge) =>
               edge.source === sourceNodeId &&
-              (edge.sourceHandle == null || edge.sourceHandle === "")
+              (edge.sourceHandle == null || edge.sourceHandle === ''),
           );
       }
 
-      if (!nextEdge) return null;
+      if (!nextEdge) {
+        const sourceNode = getNodeById(sourceNodeId);
+        let parentNodeId = sourceNode?.parentNode;
+
+        while (parentNodeId) {
+          const parentNode = getNodeById(parentNodeId);
+          if (!parentNode) break;
+
+          if (
+            parentNode.type === 'scenario' ||
+            parentNode.type === 'selectionGroup'
+          ) {
+            const parentNextEdge =
+              edges.find(
+                (edge) =>
+                  edge.source === parentNode.id &&
+                  edge.sourceHandle === 'default',
+              ) ||
+              edges.find(
+                (edge) =>
+                  edge.source === parentNode.id &&
+                  (edge.sourceHandle == null || edge.sourceHandle === ''),
+              );
+
+            return parentNextEdge ? getNodeById(parentNextEdge.target) : null;
+          }
+
+          parentNodeId = parentNode.parentNode;
+        }
+
+        return null;
+      }
       return getNodeById(nextEdge.target);
     },
-    [edges, getNodeById]
+    [edges, getNodeById],
   );
 
   const getChildNodes = useCallback(
     (parentNodeId: string) =>
       nodes.filter((node) => node.parentNode === parentNodeId),
-    [nodes]
+    [nodes],
   );
 
   const findGroupEntryNode = useCallback(
@@ -310,12 +349,9 @@ export function useBuilderExecution({
       const childNodes = getChildNodes(groupNode.id);
       if (childNodes.length === 0) return null;
 
-      if (
-        groupNode.type === "selectionGroup" &&
-        groupNode.data?.entryNodeId
-      ) {
+      if (groupNode.type === 'selectionGroup' && groupNode.data?.entryNodeId) {
         const explicit = childNodes.find(
-          (node) => node.id === groupNode.data.entryNodeId
+          (node) => node.id === groupNode.data.entryNodeId,
         );
         if (explicit) return explicit;
       }
@@ -326,13 +362,12 @@ export function useBuilderExecution({
         childNodes.find(
           (node) =>
             !edges.some(
-              (edge) =>
-                edge.target === node.id && childIds.has(edge.source)
-            )
+              (edge) => edge.target === node.id && childIds.has(edge.source),
+            ),
         ) ?? null
       );
     },
-    [edges, getChildNodes]
+    [edges, getChildNodes],
   );
 
   const resolveBranchHandle = useCallback(
@@ -350,7 +385,7 @@ export function useBuilderExecution({
           slotValue,
           condition.operator,
           condition,
-          currentSlots
+          currentSlots,
         );
 
         if (matched) {
@@ -358,9 +393,9 @@ export function useBuilderExecution({
         }
       }
 
-      return "default";
+      return 'default';
     },
-    []
+    [],
   );
 
   const applySetSlotAssignments = useCallback(
@@ -372,16 +407,16 @@ export function useBuilderExecution({
         if (!assignment?.key) return;
 
         const interpolated = interpolateMessage(
-          assignment.value ?? "",
-          nextSlots
+          assignment.value ?? '',
+          nextSlots,
         );
 
-        const text = String(interpolated ?? "").trim();
+        const text = String(interpolated ?? '').trim();
 
         try {
           if (
-            (text.startsWith("{") && text.endsWith("}")) ||
-            (text.startsWith("[") && text.endsWith("]"))
+            (text.startsWith('{') && text.endsWith('}')) ||
+            (text.startsWith('[') && text.endsWith(']'))
           ) {
             nextSlots[assignment.key] = JSON.parse(text);
             return;
@@ -390,17 +425,17 @@ export function useBuilderExecution({
           // fall through
         }
 
-        if (text.toLowerCase() === "true") {
+        if (text.toLowerCase() === 'true') {
           nextSlots[assignment.key] = true;
           return;
         }
 
-        if (text.toLowerCase() === "false") {
+        if (text.toLowerCase() === 'false') {
           nextSlots[assignment.key] = false;
           return;
         }
 
-        if (text !== "" && !Number.isNaN(Number(text))) {
+        if (text !== '' && !Number.isNaN(Number(text))) {
           nextSlots[assignment.key] = Number(text);
           return;
         }
@@ -410,7 +445,7 @@ export function useBuilderExecution({
 
       return nextSlots;
     },
-    []
+    [],
   );
 
   const applyFormInputValues = useCallback(
@@ -419,11 +454,15 @@ export function useBuilderExecution({
       const formValues: Record<string, unknown> = {};
       const elements = node.data?.elements ?? [];
 
-      elements.forEach((element: FormElement) => {
-        if (!element?.name) return;
-        const value = currentSlots[element.name];
-        nextSlots[element.name] = value;
-        formValues[element.name] = value;
+      elements.forEach((element: FormElement, index: number) => {
+        const key =
+          element?.name?.trim() ||
+          element?.id ||
+          `${element?.type || 'element'}-${index}`;
+        if (!key) return;
+        const value = currentSlots[key];
+        nextSlots[key] = value;
+        formValues[key] = value;
       });
 
       if (node.data?.slotKey && Object.keys(formValues).length > 0) {
@@ -435,25 +474,25 @@ export function useBuilderExecution({
         formValues,
       };
     },
-    []
+    [],
   );
 
   const executeApiNode = useCallback(
     async (
       node: BuilderNode,
-      currentSlots: Record<string, unknown>
+      currentSlots: Record<string, unknown>,
     ): Promise<RunNodeResult> => {
       const isMulti = Boolean(node.data?.isMulti);
-      const apiCalls = isMulti ? node.data?.apis ?? [] : [node.data];
+      const apiCalls = isMulti ? (node.data?.apis ?? []) : [node.data];
 
       const processApiCall = async (apiCall: any) => {
-        const method = String(apiCall?.method ?? "GET").toUpperCase();
-        const url = interpolateMessage(apiCall?.url ?? "", currentSlots);
+        const method = String(apiCall?.method ?? 'GET').toUpperCase();
+        const url = interpolateMessage(apiCall?.url ?? '', currentSlots);
 
         let headers: Record<string, string> = {};
         try {
           headers = JSON.parse(
-            interpolateMessage(apiCall?.headers ?? "{}", currentSlots)
+            interpolateMessage(apiCall?.headers ?? '{}', currentSlots),
           );
         } catch {
           headers = {};
@@ -462,15 +501,15 @@ export function useBuilderExecution({
         const init: RequestInit = {
           method,
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             ...headers,
           },
         };
 
-        if (method === "GET" || method === "HEAD") {
-          delete (init.headers as Record<string, string>)["Content-Type"];
+        if (method === 'GET' || method === 'HEAD') {
+          delete (init.headers as Record<string, string>)['Content-Type'];
         } else {
-          const body = interpolateMessage(apiCall?.body ?? "{}", currentSlots);
+          const body = interpolateMessage(apiCall?.body ?? '{}', currentSlots);
           init.body = body;
         }
 
@@ -479,14 +518,14 @@ export function useBuilderExecution({
 
         if (!response.ok) {
           throw new Error(
-            `API call failed (${response.status}) ${response.statusText}`
+            `API call failed (${response.status}) ${response.statusText}`,
           );
         }
 
         return {
           data,
           mapping: apiCall?.responseMapping ?? [],
-          name: apiCall?.name ?? "api",
+          name: apiCall?.name ?? 'api',
         };
       };
 
@@ -508,19 +547,20 @@ export function useBuilderExecution({
 
         return {
           slots: nextSlots,
-          nextNode: findNextNode(node.id, "onSuccess"),
+          nextNode: findNextNode(node.id, 'onSuccess'),
           payload: {
-            status: "success",
+            status: 'success',
             apiCount: results.length,
             results,
           },
         };
       } catch (error: any) {
-        const errorNextNode = findNextNode(node.id, "onError");
+        const errorNextNode = findNextNode(node.id, 'onError');
 
         if (!errorNextNode) {
           throw new Error(
-            error?.message || "API request failed and no onError edge is connected."
+            error?.message ||
+              'API request failed and no onError edge is connected.',
           );
         }
 
@@ -528,35 +568,34 @@ export function useBuilderExecution({
           slots: currentSlots,
           nextNode: errorNextNode,
           payload: {
-            status: "error",
-            message: error?.message || "API request failed",
+            status: 'error',
+            message: error?.message || 'API request failed',
             method: node.data?.method ?? null,
             url: node.data?.url ?? null,
           },
         };
       }
     },
-    [findNextNode, setSlots]
+    [findNextNode, setSlots],
   );
 
   const executeLlmNode = useCallback(
     async (
       node: BuilderNode,
-      currentSlots: Record<string, unknown>
+      currentSlots: Record<string, unknown>,
     ): Promise<RunNodeResult> => {
-      if (!GOOGLE_GEMINI_API_KEY) {
-        throw new Error("GOOGLE_GEMINI_API_KEY is not set.");
-      }
+      // if (!GOOGLE_GEMINI_API_KEY) {
+      //   throw new Error("GOOGLE_GEMINI_API_KEY is not set.");
+      // }
 
-      const prompt = interpolateMessage(node.data?.prompt ?? "", currentSlots);
-      const apiUrl =
-        `https://generativelanguage.googleapis.com/v1beta/models/` +
-        `gemini-2.0-flash:streamGenerateContent?key=${GOOGLE_GEMINI_API_KEY}&alt=sse`;
+      // const prompt = interpolateMessage(node.data?.prompt ?? "", currentSlots);
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/`;
+      //   `gemini-2.0-flash:streamGenerateContent?key=${GOOGLE_GEMINI_API_KEY}&alt=sse`;
 
       const response = await fetch(apiUrl, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
@@ -569,21 +608,21 @@ export function useBuilderExecution({
           .catch(() => ({ error: { message: response.statusText } }));
         throw new Error(
           `LLM API Error ${response.status}: ${
-            errorBody?.error?.message || "Unknown error"
-          }`
+            errorBody?.error?.message || 'Unknown error'
+          }`,
         );
       }
 
       if (!response.body) {
-        throw new Error("ReadableStream not available.");
+        throw new Error('ReadableStream not available.');
       }
 
       const reader = response.body
         .pipeThrough(new TextDecoderStream())
         .getReader();
 
-      let buffer = "";
-      let accumulated = "";
+      let buffer = '';
+      let accumulated = '';
 
       while (true) {
         assertNotCanceled();
@@ -596,21 +635,21 @@ export function useBuilderExecution({
           const message = buffer.substring(0, boundaryIndex);
           const boundaryLength = buffer
             .substring(boundaryIndex)
-            .startsWith("\r\n\r\n")
+            .startsWith('\r\n\r\n')
             ? 4
             : 2;
 
           buffer = buffer.substring(boundaryIndex + boundaryLength);
 
-          if (!message.startsWith("data: ")) continue;
+          if (!message.startsWith('data: ')) continue;
 
-          const jsonString = message.substring(6).replace(/\r/g, "").trim();
+          const jsonString = message.substring(6).replace(/\r/g, '').trim();
           if (!jsonString) continue;
 
           try {
             const json = JSON.parse(jsonString);
             const chunk =
-              json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+              json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
             if (chunk) accumulated += chunk;
           } catch {
             // ignore malformed chunks
@@ -635,27 +674,30 @@ export function useBuilderExecution({
         },
       };
     },
-    [assertNotCanceled, findNextNode, setSlots]
+    [assertNotCanceled, findNextNode, setSlots],
   );
 
   const runNode = useCallback(
     async (
       node: BuilderNode,
-      currentSlots: Record<string, unknown>
+      currentSlots: Record<string, unknown>,
     ): Promise<RunNodeResult> => {
       assertNotCanceled();
 
       switch (node.type) {
-        case "message":
+        case 'message':
           return {
             slots: currentSlots,
             nextNode: findNextNode(node.id, null),
             payload: {
-              content: interpolateMessage(node.data?.content ?? "", currentSlots),
+              content: interpolateMessage(
+                node.data?.content ?? '',
+                currentSlots,
+              ),
             },
           };
 
-        case "setSlot": {
+        case 'setSlot': {
           const nextSlots = applySetSlotAssignments(node, currentSlots);
           setSlots(nextSlots);
 
@@ -668,7 +710,7 @@ export function useBuilderExecution({
           };
         }
 
-        case "delay": {
+        case 'delay': {
           const duration = Number(node.data?.duration ?? 0);
           await wait(duration);
 
@@ -681,70 +723,116 @@ export function useBuilderExecution({
           };
         }
 
-        case "toast":
+        case 'toast':
           return {
             slots: currentSlots,
             nextNode: findNextNode(node.id, null),
             payload: {
-              toastType: node.data?.toastType ?? "info",
-              message: interpolateMessage(node.data?.message ?? "", currentSlots),
+              toastType: node.data?.toastType ?? 'info',
+              message: interpolateMessage(
+                node.data?.message ?? '',
+                currentSlots,
+              ),
             },
           };
 
-        case "link":
+        case 'link':
           return {
             slots: currentSlots,
             nextNode: findNextNode(node.id, null),
             payload: {
-              display: interpolateMessage(node.data?.display ?? "", currentSlots),
-              url: interpolateMessage(node.data?.content ?? "", currentSlots),
+              display: interpolateMessage(
+                node.data?.display ?? '',
+                currentSlots,
+              ),
+              url: interpolateMessage(node.data?.content ?? '', currentSlots),
             },
           };
 
-        case "iframe":
+        case 'iframe':
           return {
             slots: currentSlots,
             nextNode: findNextNode(node.id, null),
             payload: {
-              url: interpolateMessage(node.data?.url ?? "", currentSlots),
+              url: interpolateMessage(node.data?.url ?? '', currentSlots),
               width: node.data?.width ?? null,
               height: node.data?.height ?? null,
             },
           };
 
-        case "branch": {
-          if (node.data?.evaluationType === "CONDITION") {
+        case 'ynBranch':
+        case 'branch': {
+          if (node.type === 'ynBranch' || node.data?.isSimpleYN) {
+            const replyYId = node.data?.replies?.[0]?.value || 'Y';
+            const replyNId = node.data?.replies?.[1]?.value || 'N';
+
+            const rawInput =
+              currentSlots.lastUserInput ??
+              currentSlots.input ??
+              currentSlots.user_input ??
+              currentSlots.text ??
+              (node.data?.slotKey
+                ? currentSlots[node.data.slotKey]
+                : undefined) ??
+              '';
+
+            const strInput = String(rawInput ?? '')
+              .trim()
+              .toUpperCase();
+
+            // input이 'N'인 경우에만 N으로 분기, 없거나 다른 경우 default Y로 분기
+            const isN =
+              strInput === 'N' ||
+              strInput === 'NO' ||
+              strInput === 'ㄴ' ||
+              strInput === 'FALSE';
+            const selectedHandle = isN ? replyNId : replyYId;
+
+            return {
+              slots: currentSlots,
+              nextNode: findNextNode(node.id, selectedHandle),
+              payload: {
+                isSimpleYN: true,
+                selectedHandle,
+                input: strInput,
+              },
+            };
+          }
+
+          if (node.data?.evaluationType === 'CONDITION') {
             const handle = resolveBranchHandle(node, currentSlots);
             return {
               slots: currentSlots,
               nextNode: findNextNode(node.id, handle),
               payload: {
                 selectedHandle: handle,
-                evaluationType: "CONDITION",
+                evaluationType: 'CONDITION',
               },
             };
           }
 
-          const replies = (node.data?.replies ?? []).filter((r: any) => r?.value);
+          const replies = (node.data?.replies ?? []).filter(
+            (r: any) => r?.value,
+          );
 
           if (!replies.length) {
             return {
               slots: currentSlots,
               nextNode: null,
               waitForUser: true,
-              waitMessage: "Branch node has no selectable reply.",
+              waitMessage: t('Branch node has no selectable reply.'),
               payload: {
-                evaluationType: "BUTTON",
+                evaluationType: 'BUTTON',
               },
             };
           }
 
-          log("wait", {
+          log('wait', {
             nodeId: node.id,
             nodeType: node.type,
-            message: "Waiting for branch selection.",
+            message: t('Waiting for branch selection.'),
             payload: {
-              evaluationType: "BUTTON",
+              evaluationType: 'BUTTON',
               replies,
             },
           });
@@ -752,21 +840,21 @@ export function useBuilderExecution({
           const selectedReply = await requestBranchSelection(node, replies);
 
           if (!selectedReply?.value) {
-            throw new Error("Branch selection was canceled.");
+            throw new Error('Branch selection was canceled.');
           }
 
           return {
             slots: currentSlots,
             nextNode: findNextNode(node.id, selectedReply.value),
             payload: {
-              evaluationType: "BUTTON",
+              evaluationType: 'BUTTON',
               selectedReply,
             },
           };
         }
 
-        case "slotfilling":
-        case "fixedmenu":
+        case 'slotfilling':
+        case 'fixedmenu':
           return {
             slots: currentSlots,
             nextNode: null,
@@ -774,11 +862,11 @@ export function useBuilderExecution({
             waitMessage: `Interactive node '${node.type}' requires manual input.`,
           };
 
-        case "form": {
-          log("wait", {
+        case 'form': {
+          log('wait', {
             nodeId: node.id,
             nodeType: node.type,
-            message: "Waiting for form input.",
+            message: t('Waiting for form input.'),
             payload: {
               title: node.data?.title ?? null,
               elements: node.data?.elements ?? [],
@@ -788,7 +876,7 @@ export function useBuilderExecution({
           const submittedValues = await requestFormInput(node, currentSlots);
 
           if (!submittedValues) {
-            throw new Error("Form input was canceled.");
+            throw new Error('Form input was canceled.');
           }
 
           const { nextSlots, formValues } = applyFormInputValues(node, {
@@ -810,8 +898,8 @@ export function useBuilderExecution({
           };
         }
 
-        case "scenario":
-        case "selectionGroup": {
+        case 'scenario':
+        case 'selectionGroup': {
           const entryNode = findGroupEntryNode(node);
           return {
             slots: currentSlots,
@@ -822,10 +910,10 @@ export function useBuilderExecution({
           };
         }
 
-        case "api":
+        case 'api':
           return executeApiNode(node, currentSlots);
 
-        case "llm":
+        case 'llm':
           return executeLlmNode(node, currentSlots);
 
         default:
@@ -851,7 +939,7 @@ export function useBuilderExecution({
       requestFormInput,
       resolveBranchHandle,
       setSlots,
-    ]
+    ],
   );
 
   const stopExecution = useCallback(() => {
@@ -868,21 +956,21 @@ export function useBuilderExecution({
     closeFormInput();
     branchResolve?.(null);
     formResolve?.(null);
-    cancelExecution("Stopped by user.");
+    cancelExecution('Stopped by user.');
   }, [cancelExecution, closeBranchSelection, closeFormInput]);
 
   const runBetweenStartAndAnchor = useCallback(async () => {
     if (inFlightRef.current) return;
 
     if (!startNodeId) {
-      failExecution("startNodeId is not set.");
-      alert("startNodeId is not set.");
+      failExecution('startNodeId is not set.');
+      alert(t('startNodeId is not set.'));
       return;
     }
 
     if (!anchorNodeId) {
-      failExecution("anchorNodeId is not set.");
-      alert("anchorNodeId is not set.");
+      failExecution('anchorNodeId is not set.');
+      alert(t('anchorNodeId is not set.'));
       return;
     }
 
@@ -921,9 +1009,14 @@ export function useBuilderExecution({
 
         setExecutionCurrentNode(currentNode.id, currentNode.type);
 
-        await wait(currentNode.type === "delay" ? 0 : 1000);
+        const isInstantNode =
+          currentNode.type === 'delay' ||
+          currentNode.type === 'ynBranch' ||
+          Boolean(currentNode.data?.isSimpleYN);
 
-        log("enter", {
+        await wait(isInstantNode ? 0 : 1000);
+
+        log('enter', {
           nodeId: currentNode.id,
           nodeType: currentNode.type,
           message: `Entering node ${currentNode.id}`,
@@ -945,14 +1038,15 @@ export function useBuilderExecution({
         currentSlots = result.slots ?? currentSlots;
 
         if (result.waitForUser) {
-          log("wait", {
+          log('wait', {
             nodeId: currentNode.id,
             nodeType: currentNode.type,
-            message: result.waitMessage ?? "Execution is waiting for user input.",
+            message:
+              result.waitMessage ?? t('Execution is waiting for user input.'),
             payload: result.payload,
           });
 
-          cancelExecution(result.waitMessage ?? "Waiting for user input.");
+          cancelExecution(result.waitMessage ?? t('Waiting for user input.'));
           return;
         }
 
@@ -961,7 +1055,7 @@ export function useBuilderExecution({
           payload: result.payload,
         });
 
-        log("complete", {
+        log('complete', {
           nodeId: currentNode.id,
           nodeType: currentNode.type,
           message: `Completed node ${currentNode.id}`,
@@ -969,7 +1063,7 @@ export function useBuilderExecution({
         });
 
         if (currentNode.id === anchorNodeId) {
-          finishExecution("Anchor node reached.");
+          finishExecution('Anchor node reached.');
           return;
         }
 
@@ -977,17 +1071,17 @@ export function useBuilderExecution({
       }
 
       if (step >= maxSteps) {
-        throw new Error("Execution stopped due to max step limit.");
+        throw new Error('Execution stopped due to max step limit.');
       }
 
-      finishExecution("Execution finished without reaching anchor.");
+      finishExecution('Execution finished without reaching anchor.');
     } catch (error: any) {
       if (cancelRef.current) {
-        cancelExecution(error?.message || "Execution canceled.");
+        cancelExecution(error?.message || 'Execution canceled.');
         return;
       }
 
-      failExecution(error?.message || "Unknown execution error.");
+      failExecution(error?.message || 'Unknown execution error.');
     } finally {
       setExecutionCurrentNode(null);
       inFlightRef.current = false;

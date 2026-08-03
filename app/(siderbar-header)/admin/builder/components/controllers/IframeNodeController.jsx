@@ -1,9 +1,10 @@
-
 import styles from '../NodeController.module.css';
 import { useNodeController } from './hooks/useNodeController';
 import ChainNextCheckbox from './common/ChainNextCheckbox';
+import { useTranslation } from 'react-i18next';
 
 function IframeNodeController({ localNode, setLocalNode }) {
+  const { t } = useTranslation();
   const { data } = localNode;
   // 3. 훅 사용 및 로컬 함수 제거
   const { handleLocalDataChange } = useNodeController(setLocalNode);
@@ -11,7 +12,7 @@ function IframeNodeController({ localNode, setLocalNode }) {
   return (
     <>
       <div className={styles.formGroup}>
-        <label>URL</label>
+        <label>{t('URL')}</label>
         <textarea
           value={data.url || ''}
           onChange={(e) => handleLocalDataChange('url', e.target.value)}
@@ -20,7 +21,7 @@ function IframeNodeController({ localNode, setLocalNode }) {
       </div>
       <div className={styles.gridControls}>
         <div className={styles.formGroup}>
-          <label>Width (px)</label>
+          <label>{t('Width')} (px)</label>
           <input
             type="number"
             value={data.width || ''}
@@ -28,7 +29,7 @@ function IframeNodeController({ localNode, setLocalNode }) {
           />
         </div>
         <div className={styles.formGroup}>
-          <label>Height (px)</label>
+          <label>{t('Height')} (px)</label>
           <input
             type="number"
             value={data.height || ''}

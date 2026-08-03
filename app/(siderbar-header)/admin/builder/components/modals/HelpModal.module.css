@@ -60,12 +60,14 @@
   margin-top: 25px;
 }
 
-.modalContent p, .modalContent li {
+.modalContent p,
+.modalContent li {
   line-height: 1.6;
   font-size: 1rem;
 }
 
-.modalContent ul, .modalContent ol {
+.modalContent ul,
+.modalContent ol {
   padding-left: 20px;
 }
 
@@ -83,7 +85,8 @@
   font-size: 0.9rem;
 }
 
-.modalContent th, .modalContent td {
+.modalContent th,
+.modalContent td {
   border: 1px solid #ddd;
   padding: 12px;
   text-align: left;

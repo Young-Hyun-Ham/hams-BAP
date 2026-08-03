@@ -1,11 +1,10 @@
-// app/(siderbar-header)/admin/builder/components/simulator/MessageHistory.jsx
+// src/components/simulator/MessageHistory.jsx
 
 import React, { useRef, useEffect } from 'react';
 import MessageRenderer from './MessageRenderer';
 import styles from '../ChatbotSimulator.module.css';
 
 // 💡 [수정된 부분] handleGridRowClick, onExcelUpload 프롭 추가
-// 💡 [수정] handleFormElementApiCall prop 받기
 const MessageHistory = ({
   history,
   nodes,
@@ -15,9 +14,10 @@ const MessageHistory = ({
   formData,
   handleFormInputChange,
   handleFormMultiInputChange,
+  formElementOverrides,
   handleGridRowClick,
   onExcelUpload,
-  handleFormElementApiCall // 💡 [수정]
+  handleFormElementApiCall,
 }) => {
   const historyRef = useRef(null);
 
@@ -40,9 +40,10 @@ const MessageHistory = ({
           formData={formData}
           handleFormInputChange={handleFormInputChange}
           handleFormMultiInputChange={handleFormMultiInputChange}
+          formElementOverrides={formElementOverrides}
           handleGridRowClick={handleGridRowClick}
           onExcelUpload={onExcelUpload}
-          handleFormElementApiCall={handleFormElementApiCall} // 💡 [수정] prop 전달
+          handleFormElementApiCall={handleFormElementApiCall}
         />
       ))}
     </div>

@@ -1,10 +1,12 @@
 // (Handle, Position 임포트 제거)
 import styles from './ChatNodes.module.css';
-import useBuilderStore from '../../store/index';
+import { useBuilderStore } from '../../store/index';
 // (AnchorIcon, StartNodeIcon 임포트 제거)
 import NodeWrapper from './NodeWrapper'; // 1. Wrapper 임포트
+import { useTranslation } from 'react-i18next';
 
 function LinkNode({ id, data }) {
+  const { t } = useTranslation();
   // 2. 공통 로직 제거
   const nodeColor = useBuilderStore((state) => state.nodeColors.link);
   const textColor = useBuilderStore((state) => state.nodeTextColors.link);
@@ -22,15 +24,11 @@ function LinkNode({ id, data }) {
     >
       {/* 4. 기존 nodeBody의 내용만 children으로 전달 */}
       <div className={styles.section}>
-        <span className={styles.sectionTitle}>Display Text</span>
-        <input
-          className={styles.textInput}
-          value={data.display}
-          readOnly
-        />
+        <span className={styles.sectionTitle}>{t('Display Text')}</span>
+        <input className={styles.textInput} value={data.display} readOnly />
       </div>
       <div className={styles.section}>
-        <span className={styles.sectionTitle}>URL</span>
+        <span className={styles.sectionTitle}>{t('URL')}</span>
         <textarea
           className={styles.textInput}
           value={data.content}

@@ -1,9 +1,10 @@
-
 import styles from '../NodeController.module.css';
 import { useNodeController } from './hooks/useNodeController';
 import ChainNextCheckbox from './common/ChainNextCheckbox';
+import { useTranslation } from 'react-i18next';
 
 function LlmNodeController({ localNode, setLocalNode }) {
+  const { t } = useTranslation();
   const { data } = localNode;
   // 3. 훅 사용 및 로컬 함수 제거
   const { handleLocalDataChange } = useNodeController(setLocalNode);
@@ -37,7 +38,7 @@ function LlmNodeController({ localNode, setLocalNode }) {
         onChange={(value) => handleLocalDataChange('chainNext', value)}
       />
       <div className={styles.formGroup}>
-        <label>Prompt</label>
+        <label>{t('Prompt')}</label>
         <textarea
           value={data.prompt || ''}
           onChange={(e) => handleLocalDataChange('prompt', e.target.value)}
@@ -45,7 +46,7 @@ function LlmNodeController({ localNode, setLocalNode }) {
         />
       </div>
       <div className={styles.formGroup}>
-        <label>Output Variable</label>
+        <label>{t('Output Variable')}</label>
         <input
           type="text"
           value={data.outputVar || ''}
@@ -55,21 +56,30 @@ function LlmNodeController({ localNode, setLocalNode }) {
       </div>
       <div className={styles.separator} />
       <div className={styles.formGroup}>
-        <label>Conditions (Branching)</label>
+        <label>
+          {t('Conditions')} ({t('Branching')})
+        </label>
         <div className={styles.repliesContainer}>
           {(data.conditions || []).map((cond, index) => (
             <div key={cond.id} className={styles.quickReply}>
               <input
                 className={styles.quickReplyInput}
                 value={cond.keyword}
-                onChange={(e) => handleLlmConditionChange(index, e.target.value)}
+                onChange={(e) =>
+                  handleLlmConditionChange(index, e.target.value)
+                }
                 placeholder="Keyword to match"
               />
-              <button onClick={() => deleteLlmCondition(index)} className={styles.deleteReplyButton}>×</button>
+              <button
+                onClick={() => deleteLlmCondition(index)}
+                className={styles.deleteReplyButton}
+              >
+                ×
+              </button>
             </div>
           ))}
           <button onClick={addLlmCondition} className={styles.addReplyButton}>
-            + Add Condition
+            + {t('Add Condition')}
           </button>
         </div>
       </div>

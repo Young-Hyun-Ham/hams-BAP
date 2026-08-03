@@ -1,4 +1,4 @@
-// src/nodeExecutors.js
+/* global window */
 import { interpolateMessage, generateUniqueId } from './simulatorUtils';
 
 /**
@@ -9,7 +9,14 @@ import { interpolateMessage, generateUniqueId } from './simulatorUtils';
  * @param {function} preparePacket - (선택) nodeDataPacket을 가공하는 함수
  */
 const handleVisibleNode = (context, isInteractive, preparePacket = null) => {
-  const { node, updatedSlots, activeChainId, setHistory, proceedToNextNode, setSlots } = context;
+  const {
+    node,
+    updatedSlots,
+    activeChainId,
+    setHistory,
+    proceedToNextNode,
+    setSlots,
+  } = context;
 
   // 1. 노드 데이터 패킷 생성
   let nodeDataPacket = {
@@ -22,20 +29,40 @@ const handleVisibleNode = (context, isInteractive, preparePacket = null) => {
   if (preparePacket) {
     nodeDataPacket = preparePacket(nodeDataPacket, updatedSlots);
   }
-  
+
   // 3. 폼 노드인 경우, 기본값(defaultValue)을 보간하여 슬롯에 선제적으로 적용
   if (node.type === 'form') {
     let initialSlotsUpdate = {};
-    (node.data.elements || []).forEach(element => {
-      if (element.type === 'input' && element.name && element.defaultValue !== undefined && element.defaultValue !== '') {
+    (node.data.elements || []).forEach((element) => {
+      if (
+        element.type === 'input' &&
+        element.name &&
+        element.defaultValue !== undefined &&
+        element.defaultValue !== ''
+      ) {
         const defaultValueConfig = element.defaultValue;
-        let resolvedValue = interpolateMessage(String(defaultValueConfig), updatedSlots);
+        let resolvedValue = interpolateMessage(
+          String(defaultValueConfig),
+          updatedSlots,
+        );
         if (resolvedValue !== undefined) {
           initialSlotsUpdate[element.name] = resolvedValue;
         }
-      } else if ((element.type === 'date' || element.type === 'dropbox') && element.name && element.defaultValue !== undefined && element.defaultValue !== '') {
-        initialSlotsUpdate[element.name] = interpolateMessage(String(element.defaultValue), updatedSlots);
-      } else if (element.type === 'checkbox' && element.name && Array.isArray(element.defaultValue)) {
+      } else if (
+        (element.type === 'date' || element.type === 'dropbox') &&
+        element.name &&
+        element.defaultValue !== undefined &&
+        element.defaultValue !== ''
+      ) {
+        initialSlotsUpdate[element.name] = interpolateMessage(
+          String(element.defaultValue),
+          updatedSlots,
+        );
+      } else if (
+        element.type === 'checkbox' &&
+        element.name &&
+        Array.isArray(element.defaultValue)
+      ) {
         initialSlotsUpdate[element.name] = element.defaultValue;
       }
     });
@@ -60,32 +87,48 @@ const handleVisibleNode = (context, isInteractive, preparePacket = null) => {
       isCompleted: !isInteractive,
       isChaining: isChaining,
     };
-    setHistory(prev => [...prev, newItem]);
+    setHistory((prev) => [...prev, newItem]);
 
     if (!isInteractive) {
       // 500ms 딜레이 후 다음 노드로 진행
-      setTimeout(() => {
-        proceedToNextNode(null, node.id, updatedSlots, isChaining ? newChainId : null);
-      }, 500);
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          proceedToNextNode(
+            null,
+            node.id,
+            updatedSlots,
+            isChaining ? newChainId : null,
+          );
+        }, 500);
+      }
     }
   } else {
     // --- B. 기존 체인에 덧붙이기 ---
-    setHistory(prev => prev.map(item =>
-      item.id === activeChainId
-        ? {
-          ...item,
-          combinedData: [...item.combinedData, nodeDataPacket], // 현재 노드 덧붙이기
-          isCompleted: !isInteractive, // 갱신
-          isChaining: isChaining,
-        }
-        : item
-    ));
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.id === activeChainId
+          ? {
+              ...item,
+              combinedData: [...item.combinedData, nodeDataPacket], // 현재 노드 덧붙이기
+              isCompleted: !isInteractive, // 갱신
+              isChaining: isChaining,
+            }
+          : item,
+      ),
+    );
 
     if (!isInteractive) {
       // 500ms 딜레이 후 다음 노드로 진행
-      setTimeout(() => {
-        proceedToNextNode(null, node.id, updatedSlots, isChaining ? activeChainId : null);
-      }, 500);
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          proceedToNextNode(
+            null,
+            node.id,
+            updatedSlots,
+            isChaining ? activeChainId : null,
+          );
+        }, 500);
+      }
     }
   }
 };
@@ -96,22 +139,31 @@ const handleVisibleNode = (context, isInteractive, preparePacket = null) => {
 export const delay = (context) => {
   const { node, updatedSlots, activeChainId, proceedToNextNode } = context;
   const duration = node.data.duration || 0;
-  setTimeout(() => {
-    proceedToNextNode(null, node.id, updatedSlots, activeChainId);
-  }, duration);
+  if (typeof window !== 'undefined') {
+    window.setTimeout(() => {
+      proceedToNextNode(null, node.id, updatedSlots, activeChainId);
+    }, duration);
+  }
 };
 
 /** (보이지 않는 노드) Set Slot: 슬롯 설정 후 즉시 다음 노드 진행 */
 export const setSlot = (context) => {
-  const { node, updatedSlots, activeChainId, proceedToNextNode, setSlots } = context;
-  
+  const { node, updatedSlots, activeChainId, proceedToNextNode, setSlots } =
+    context;
+
   const newSlots = { ...updatedSlots };
-  node.data.assignments?.forEach(assignment => {
+  node.data.assignments?.forEach((assignment) => {
     if (assignment.key) {
-      const interpolatedValue = interpolateMessage(assignment.value, updatedSlots);
+      const interpolatedValue = interpolateMessage(
+        assignment.value,
+        updatedSlots,
+      );
       try {
         const trimmedValue = interpolatedValue.trim();
-        if ((trimmedValue.startsWith('{') && trimmedValue.endsWith('}')) || (trimmedValue.startsWith('[') && trimmedValue.endsWith(']'))) {
+        if (
+          (trimmedValue.startsWith('{') && trimmedValue.endsWith('}')) ||
+          (trimmedValue.startsWith('[') && trimmedValue.endsWith(']'))
+        ) {
           newSlots[assignment.key] = JSON.parse(trimmedValue);
         } else if (trimmedValue.toLowerCase() === 'true') {
           newSlots[assignment.key] = true;
@@ -124,12 +176,13 @@ export const setSlot = (context) => {
         } else {
           newSlots[assignment.key] = interpolatedValue;
         }
-      } catch (e) {
+      } catch {
+        // [수정] catch (_e) -> catch (변수 제거하여 unused-vars 오류 해결)
         newSlots[assignment.key] = interpolatedValue;
       }
     }
   });
-  
+
   setSlots(newSlots);
   proceedToNextNode(null, node.id, newSlots, activeChainId);
 };
@@ -138,7 +191,9 @@ export const setSlot = (context) => {
 export const toast = (context) => {
   const { node, updatedSlots, activeChainId, proceedToNextNode } = context;
   const message = interpolateMessage(node.data.message, updatedSlots);
-  alert(`[${node.data.toastType || 'info'}] ${message}`);
+  if (typeof window !== 'undefined') {
+    window.alert(`[${node.data.toastType || 'info'}] ${message}`);
+  }
   proceedToNextNode(null, node.id, updatedSlots, activeChainId);
 };
 
@@ -159,19 +214,28 @@ export const fixedmenu = (context) => {
 
 /** (보이지 않는 노드) Scenario Group: 그룹 내부의 시작 노드 탐색 후 실행 */
 export const scenario = (context) => {
-  const { node, updatedSlots, activeChainId, proceedToNextNode, nodes, edges, setCurrentId, addBotMessage } = context;
-  
-  const childNodes = nodes.filter(n => n.parentNode === node.id);
+  const {
+    node,
+    updatedSlots,
+    activeChainId,
+    proceedToNextNode,
+    nodes,
+    edges,
+    setCurrentId,
+    addBotMessage,
+  } = context;
+
+  const childNodes = nodes.filter((n) => n.parentNode === node.id);
   // group 노드 추가로 인한 체크로직 추가
   if (childNodes.length === 0) {
     proceedToNextNode(null, node.id, updatedSlots, activeChainId);
     return;
   }
-  const childNodeIds = new Set(childNodes.map(n => n.id));
-  
+  const childNodeIds = new Set(childNodes.map((n) => n.id));
+
   // 그룹 내부의 시작 노드 찾기 (들어오는 엣지가 없는 노드)
-  const startNode = childNodes.find(n =>
-    !edges.some(e => e.target === n.id && childNodeIds.has(e.source))
+  const startNode = childNodes.find(
+    (n) => !edges.some((e) => e.target === n.id && childNodeIds.has(e.source)),
   );
 
   if (startNode) {
@@ -196,7 +260,7 @@ export const link = (context) => {
     const url = interpolateMessage(packet.data.content, slots);
     const display = interpolateMessage(packet.data.display, slots);
     packet.linkData = { url, display }; // linkData 설정
-    if (url) {
+    if (url && typeof window !== 'undefined') {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
     return packet;
@@ -229,7 +293,7 @@ export const branch = (context) => {
   }
 };
 
-// 추가 노드 : Group Selection 
+// 추가 노드 : Group Selection
 export const selectionGroup = (context) => {
   const {
     node,
@@ -258,7 +322,8 @@ export const selectionGroup = (context) => {
 
   if (!startNode) {
     startNode = childNodes.find(
-      (n) => !edges.some((e) => e.target === n.id && childNodeIds.has(e.source))
+      (n) =>
+        !edges.some((e) => e.target === n.id && childNodeIds.has(e.source)),
     );
   }
 

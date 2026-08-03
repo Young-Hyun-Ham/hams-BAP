@@ -7,13 +7,15 @@
  */
 export const formatDisplayKeys = (keys) => {
   if (!Array.isArray(keys)) return keys || ''; // 이전 버전(문자열) 호환
-  return keys.map(k => {
-    if (typeof k === 'string') return k; // 이전 버전(문자열 배열) 호환
-    if (k.label && k.label !== k.key) {
-      return `${k.key}(${k.label})`;
-    }
-    return k.key;
-  }).join(',');
+  return keys
+    .map((k) => {
+      if (typeof k === 'string') return k; // 이전 버전(문자열 배열) 호환
+      if (k.label && k.label !== k.key) {
+        return `${k.key}(${k.label})`;
+      }
+      return k.key;
+    })
+    .join(',');
 };
 
 /**
@@ -24,9 +26,9 @@ export const formatDisplayKeys = (keys) => {
 export const parseDisplayKeys = (value) => {
   if (!value) return [];
   const keys = [];
-  
+
   // 쉼표를 기준으로 먼저 나누고 각 항목을 정규식으로 처리
-  value.split(',').forEach(part => {
+  value.split(',').forEach((part) => {
     part = part.trim();
     if (part) {
       const match = part.match(/([^()]+)(?:\(([^)]+)\))?/);
@@ -39,6 +41,6 @@ export const parseDisplayKeys = (value) => {
       }
     }
   });
-  
+
   return keys;
 };

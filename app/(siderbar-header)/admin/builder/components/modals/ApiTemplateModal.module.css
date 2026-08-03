@@ -54,7 +54,8 @@
   min-height: 1.2em; /* 공간 유지 */
 }
 
-.saveSection, .loadSection {
+.saveSection,
+.loadSection {
   margin-top: 15px;
 }
 
@@ -112,11 +113,12 @@
 }
 
 .buttonGroup {
-    display: flex;
-    gap: 8px;
+  display: flex;
+  gap: 8px;
 }
 
-.loadButton, .deleteButton {
+.loadButton,
+.deleteButton {
   padding: 5px 12px;
   font-size: 0.8rem;
   border: none;
@@ -131,12 +133,12 @@
 
 /* --- 💡 수정된 부분 시작 --- */
 .deleteButton {
-    background-color: #e74c3c;
+  background-color: #e74c3c;
 }
 /* --- 💡 수정된 부분 끝 --- */
 
 .placeholder {
-    text-align: center;
-    color: #888;
-    font-style: italic;
+  text-align: center;
+  color: #888;
+  font-style: italic;
 }

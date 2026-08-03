@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 export type MemoCanvasItem = {
   id: string;
@@ -26,7 +26,7 @@ type CanvasMemoItemProps = {
 };
 
 function hexToRgba(hex: string, alpha: number) {
-  const value = hex.replace("#", "");
+  const value = hex.replace('#', '');
   const r = parseInt(value.slice(0, 2), 16);
   const g = parseInt(value.slice(2, 4), 16);
   const b = parseInt(value.slice(4, 6), 16);
@@ -43,6 +43,17 @@ export function CanvasMemoItem({
   onDragStart,
   onResizeStart,
 }: CanvasMemoItemProps) {
+  const buttonStyle: React.CSSProperties = {
+    cursor: 'pointer',
+    background: 'none',
+    border: 'none',
+    color: 'black',
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
   return (
     <div
       onPointerDown={(event) => {
@@ -50,18 +61,21 @@ export function CanvasMemoItem({
         onSelect(memo.id);
       }}
       style={{
-        position: "absolute",
+        position: 'absolute',
         left: memo.x,
         top: memo.y,
         width: memo.width,
         height: memo.isCollapsed ? 42 : memo.height,
-        backgroundColor: hexToRgba(memo.backgroundColor, memo.backgroundOpacity),
+        backgroundColor: hexToRgba(
+          memo.backgroundColor,
+          memo.backgroundOpacity,
+        ),
         color: memo.textColor,
-        border: selected ? "2px solid #2563eb" : "1px solid #cbd5e1",
+        border: selected ? '2px solid #2563eb' : '1px solid #cbd5e1',
         borderRadius: 12,
-        boxShadow: "0 8px 24px rgba(15, 23, 42, 0.18)",
-        overflow: "hidden",
-        pointerEvents: "auto",
+        boxShadow: '0 8px 24px rgba(15, 23, 42, 0.18)',
+        overflow: 'hidden',
+        pointerEvents: 'auto',
         zIndex: memo.zIndex,
       }}
     >
@@ -72,19 +86,19 @@ export function CanvasMemoItem({
           onDragStart(event, memo.id);
         }}
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           height: 42,
-          padding: "0 10px",
-          background: "rgba(255,255,255,0.35)",
-          cursor: "grab",
-          borderBottom: memo.isCollapsed ? "0" : "1px solid rgba(0,0,0,0.08)",
+          padding: '0 10px',
+          background: 'rgba(255,255,255,0.35)',
+          cursor: 'grab',
+          borderBottom: memo.isCollapsed ? '0' : '1px solid rgba(0,0,0,0.08)',
         }}
       >
         <span style={{ fontSize: 12, fontWeight: 700 }}>Memo</span>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
             type="range"
             min="0.1"
@@ -112,14 +126,16 @@ export function CanvasMemoItem({
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => onToggleCollapse(memo.id)}
+            style={buttonStyle}
           >
-            {memo.isCollapsed ? "+" : "-"}
+            {memo.isCollapsed ? '+' : '-'}
           </button>
 
           <button
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => onRemove(memo.id)}
+            style={buttonStyle}
           >
             x
           </button>
@@ -131,35 +147,37 @@ export function CanvasMemoItem({
           <textarea
             value={memo.text}
             onPointerDown={(event) => event.stopPropagation()}
-            onChange={(event) => onUpdate(memo.id, { text: event.target.value })}
+            onChange={(event) =>
+              onUpdate(memo.id, { text: event.target.value })
+            }
             style={{
-              width: "100%",
+              width: '100%',
               height: memo.height - 42,
               border: 0,
-              outline: "none",
-              resize: "none",
-              background: "transparent",
+              outline: 'none',
+              resize: 'none',
+              background: 'transparent',
               color: memo.textColor,
               padding: 12,
               paddingBottom: 24,
               fontSize: 13,
               lineHeight: 1.5,
-              boxSizing: "border-box",
+              boxSizing: 'border-box',
             }}
           />
 
           <div
             onPointerDown={(event) => onResizeStart(event, memo.id)}
             style={{
-              position: "absolute",
+              position: 'absolute',
               right: 6,
               bottom: 6,
               width: 14,
               height: 14,
-              cursor: "nwse-resize",
-              borderRight: "2px solid rgba(0,0,0,0.35)",
-              borderBottom: "2px solid rgba(0,0,0,0.35)",
-              pointerEvents: "auto",
+              cursor: 'nwse-resize',
+              borderRight: '2px solid rgba(0,0,0,0.35)',
+              borderBottom: '2px solid rgba(0,0,0,0.35)',
+              pointerEvents: 'auto',
             }}
           />
         </>

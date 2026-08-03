@@ -1,4 +1,5 @@
 import { db } from '@/lib/firebase';
+import { v4 as uuidv4 } from 'uuid';
 import {
   collection,
   getDocs,
@@ -13,6 +14,7 @@ import {
 } from 'firebase/firestore';
 
 export const fetchScenarios = async () => {
+  // console.log("Fetching scenarios from Firestore...");
   const scenariosCollection = collection(db, 'scenarios');
   const querySnapshot = await getDocs(scenariosCollection);
   return querySnapshot.docs.map((doc) => {
@@ -29,7 +31,8 @@ export const fetchScenarios = async () => {
 };
 
 export const createScenario = async ({ newScenarioName, job, description }: any) => {
-  const newScenarioRef = doc(db, 'scenarios', newScenarioName);
+  const scenarioId = uuidv4();
+  const newScenarioRef = doc(db, 'scenarios', scenarioId);
   const docSnap = await getDoc(newScenarioRef);
   if (docSnap.exists()) {
     throw new Error('A scenario with that name already exists.');
@@ -80,7 +83,8 @@ export const deleteScenario = async ({ scenarioId }: any) => {
 };
 
 export const cloneScenario = async ({ scenarioToClone, newName }: any) => {
-  const originalDocRef = doc(db, 'scenarios', scenarioToClone.id);
+  const scenarioId = uuidv4();
+  const originalDocRef = doc(db, 'scenarios', scenarioId);
   const newDocRef = doc(db, 'scenarios', newName);
 
   const newDocSnap = await getDoc(newDocRef);

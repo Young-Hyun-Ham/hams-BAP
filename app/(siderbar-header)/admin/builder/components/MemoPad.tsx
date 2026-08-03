@@ -1,8 +1,11 @@
-"use client";
+'use client';
 
-import { useMemo, useRef, useState } from "react";
-import styles from "./MemoPad.module.css";
-import * as utils from '@/lib/utils/utils';
+import { useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import styles from './MemoPad.module.css';
+
+import { getSafeUUID } from '../utils/util';
 
 type ColorRange = {
   start: number;
@@ -56,7 +59,7 @@ function normalizeRanges(ranges: ColorRange[]) {
 function applyColorToRanges(
   prevRanges: ColorRange[],
   selection: SelectionState,
-  color: string
+  color: string,
 ) {
   const { start, end } = selection;
   if (start === end) return prevRanges;
@@ -103,14 +106,17 @@ function renderHighlightedText(text: string, ranges: ColorRange[]) {
       parts.push(
         <span key={`plain-${index}-${cursor}`}>
           {text.slice(cursor, range.start)}
-        </span>
+        </span>,
       );
     }
 
     parts.push(
-      <span key={`color-${index}-${range.start}`} style={{ color: range.color }}>
+      <span
+        key={`color-${index}-${range.start}`}
+        style={{ color: range.color }}
+      >
         {text.slice(range.start, range.end)}
-      </span>
+      </span>,
     );
 
     cursor = range.end;
@@ -121,24 +127,27 @@ function renderHighlightedText(text: string, ranges: ColorRange[]) {
   }
 
   if (text.length === 0) {
-    parts.push(<span key="empty">{"\u200b"}</span>);
+    parts.push(<span key="empty">{'\u200b'}</span>);
   }
 
   return parts;
 }
 
 export default function MemoPad({ memos, setMemos }: MemoPadProps) {
+  const { t } = useTranslation();
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const overlayRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [selectionById, setSelectionById] = useState<Record<string, SelectionState>>({});
+  const [selectionById, setSelectionById] = useState<
+    Record<string, SelectionState>
+  >({});
 
   const addMemo = () => {
     setMemos((prev) => [
       ...prev,
       {
-        id: utils.getSafeUUID(),
-        text: "",
-        backgroundColor: "#fff7c2",
+        id: getSafeUUID(),
+        text: '',
+        backgroundColor: '#fff7c2',
         ranges: [],
       },
     ]);
@@ -150,7 +159,7 @@ export default function MemoPad({ memos, setMemos }: MemoPadProps) {
 
   const updateMemo = (id: string, patch: Partial<MemoItem>) => {
     setMemos((prev) =>
-      prev.map((memo) => (memo.id === id ? { ...memo, ...patch } : memo))
+      prev.map((memo) => (memo.id === id ? { ...memo, ...patch } : memo)),
     );
   };
 
@@ -178,8 +187,8 @@ export default function MemoPad({ memos, setMemos }: MemoPadProps) {
               ...memo,
               ranges: applyColorToRanges(memo.ranges ?? [], selection, color),
             }
-          : memo
-      )
+          : memo,
+      ),
     );
 
     textareaRefs.current[id]?.focus();
@@ -197,9 +206,9 @@ export default function MemoPad({ memos, setMemos }: MemoPadProps) {
   return (
     <div className={styles.memoPadContainer}>
       <div className={styles.memoPadHeader}>
-        <h4 className={styles.memoPadTitle}>Memo</h4>
+        <h4 className={styles.memoPadTitle}>{t('Memo')}</h4>
         <button type="button" className={styles.addButton} onClick={addMemo}>
-          Add
+          {t('Add')}
         </button>
       </div>
 
@@ -208,7 +217,7 @@ export default function MemoPad({ memos, setMemos }: MemoPadProps) {
           <div key={memo.id} className={styles.memoCard}>
             <div className={styles.memoToolbar}>
               <label className={styles.colorLabel}>
-                Bg
+                {t('Bg')}
                 <input
                   type="color"
                   value={memo.backgroundColor}
@@ -219,11 +228,13 @@ export default function MemoPad({ memos, setMemos }: MemoPadProps) {
               </label>
 
               <label className={styles.colorLabel}>
-                Text
+                {t('Text')}
                 <input
                   type="color"
                   defaultValue="#111827"
-                  onChange={(e) => handleApplyTextColor(memo.id, e.target.value)}
+                  onChange={(e) =>
+                    handleApplyTextColor(memo.id, e.target.value)
+                  }
                 />
               </label>
 
@@ -232,7 +243,7 @@ export default function MemoPad({ memos, setMemos }: MemoPadProps) {
                 className={styles.deleteButton}
                 onClick={() => removeMemo(memo.id)}
               >
-                Delete
+                {t('Delete')}
               </button>
             </div>
 

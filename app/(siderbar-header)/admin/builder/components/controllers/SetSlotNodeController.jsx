@@ -1,9 +1,10 @@
-
 import styles from '../NodeController.module.css';
 import { useNodeController } from './hooks/useNodeController';
 import ChainNextCheckbox from './common/ChainNextCheckbox';
+import { useTranslation } from 'react-i18next';
 
 function SetSlotNodeController({ localNode, setLocalNode }) {
+  const { t } = useTranslation();
   const { data } = localNode;
   // 3. 훅 사용 및 로컬 함수 제거
   const { handleLocalDataChange } = useNodeController(setLocalNode);
@@ -22,23 +23,22 @@ function SetSlotNodeController({ localNode, setLocalNode }) {
   };
 
   const deleteAssignment = (index) => {
-    const newAssignments = (data.assignments || []).filter((_, i) => i !== index);
+    const newAssignments = (data.assignments || []).filter(
+      (_, i) => i !== index,
+    );
     handleLocalDataChange('assignments', newAssignments); // 훅 함수 사용
   };
 
   return (
     <>
       <div className={styles.formGroup}>
-        <label>Slot Assignments</label>
-        <p className={styles.instructionText} style={{ marginTop: 0, fontSize: '0.8rem' }}>
-          Set or update slot values. You can use existing slot values in the 'Value' field with {`{{slotName}}`}.
-        </p>
-        <p className={styles.instructionText} style={{marginTop: 0, fontSize: '0.8rem', textAlign:'left'}}>
-            {`ex)`}<br/>
-            {`{{object명}}`}<br/>
-            {`{{[배열]}}`}<br/>
-            {`{{[배열][배열번호].key값}}`}<br/>
-            {`{{header([배열], key값)}}`}
+        <label>{t('Slot Assignments')}</label>
+        <p
+          className={styles.instructionText}
+          style={{ marginTop: 0, fontSize: '0.8rem' }}
+        >
+          Set or update slot values. You can use existing slot values in the
+          'Value' field with {`{slotName}`}.
         </p>
         <div className={styles.repliesContainer}>
           {(data.assignments || []).map((assign, index) => (
@@ -46,20 +46,29 @@ function SetSlotNodeController({ localNode, setLocalNode }) {
               <input
                 className={styles.quickReplyInput}
                 value={assign.key}
-                onChange={(e) => handleAssignmentChange(index, 'key', e.target.value)}
-                placeholder="Slot Key"
+                onChange={(e) =>
+                  handleAssignmentChange(index, 'key', e.target.value)
+                }
+                placeholder={t('Slot Key')}
               />
               <input
                 className={styles.quickReplyInput}
                 value={assign.value}
-                onChange={(e) => handleAssignmentChange(index, 'value', e.target.value)}
-                placeholder="Value"
+                onChange={(e) =>
+                  handleAssignmentChange(index, 'value', e.target.value)
+                }
+                placeholder={t('Value')}
               />
-              <button onClick={() => deleteAssignment(index)} className={styles.deleteReplyButton}>×</button>
+              <button
+                onClick={() => deleteAssignment(index)}
+                className={styles.deleteReplyButton}
+              >
+                ×
+              </button>
             </div>
           ))}
           <button onClick={addAssignment} className={styles.addReplyButton}>
-            + Add Assignment
+            + {t('Add Assignment')}
           </button>
         </div>
       </div>

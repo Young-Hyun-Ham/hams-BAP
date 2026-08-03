@@ -1,10 +1,12 @@
 // (Handle, Position 임포트 제거)
 import styles from './ChatNodes.module.css';
-import useBuilderStore from '../../store/index';
+import { useBuilderStore } from '../../store/index';
 import { ToastIcon } from '../icons/Icons';
 import NodeWrapper from './NodeWrapper';
+import { useTranslation } from 'react-i18next';
 
 function ToastNode({ id, data }) {
+  const { t } = useTranslation();
   // 3. 공통 로직 제거
   const nodeColor = useBuilderStore((state) => state.nodeColors.toast);
   const textColor = useBuilderStore((state) => state.nodeTextColors.toast);
@@ -22,7 +24,7 @@ function ToastNode({ id, data }) {
     >
       {/* 6. 기존 nodeBody의 내용만 children으로 전달 */}
       <div className={styles.section}>
-        <span className={styles.sectionTitle}>Message</span>
+        <span className={styles.sectionTitle}>{t('Message')}</span>
         <textarea
           className={styles.textInput}
           value={data.message || ''}
@@ -31,8 +33,8 @@ function ToastNode({ id, data }) {
         />
       </div>
       <div className={styles.section}>
-        <span className={styles.sectionTitle}>Type</span>
-         <input
+        <span className={styles.sectionTitle}>{t('Type')}</span>
+        <input
           type="text"
           className={styles.textInput}
           value={data.toastType || 'info'}
