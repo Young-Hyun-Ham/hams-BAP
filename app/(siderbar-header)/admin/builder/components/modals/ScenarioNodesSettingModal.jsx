@@ -74,13 +74,13 @@ function ScenarioNodesSettingModal({ isOpen, onClose }) {
     setNodeColors(nextNodeColors);
     setUserInfoJson({
       ...userInfoJson,
-      node_colors: nextNodeColors,
+      nodeColors: nextNodeColors,
     });
   };
 
   const updateNodeUseStatus = (nodeId, checked) => {
-    const currentUnuseNodes = Array.isArray(userInfoJson?.unuse_nodes)
-      ? userInfoJson.unuse_nodes
+    const currentUnuseNodes = Array.isArray(userInfoJson?.unuseNodes)
+      ? userInfoJson.unuseNodes
       : [];
     const nextUnuseNodes = checked
       ? currentUnuseNodes.filter((item) => item !== nodeId)
@@ -88,7 +88,7 @@ function ScenarioNodesSettingModal({ isOpen, onClose }) {
 
     setUserInfoJson({
       ...userInfoJson,
-      unuse_nodes: nextUnuseNodes,
+      unuseNodes: nextUnuseNodes,
     });
     void loadTreeNodes();
   };
@@ -224,7 +224,7 @@ function ScenarioNodesSettingModal({ isOpen, onClose }) {
                   sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
                 >
                   {section.children.map((item) => {
-                    const checked = !userInfoJson?.unuse_nodes?.includes(
+                    const checked = !userInfoJson?.unuseNodes?.includes(
                       item.id,
                     );
 

@@ -2120,7 +2120,7 @@ const Flow = ({ scenario, scenarios }: any) => {
       return;
     } else {
       const userInfo = await loadingUserData();
-      if (userInfo.unuse_nodes.includes(node.type)) {
+      if (userInfo.unuseNodes?.includes(node.type)) {
         showAlert(
           `${t('The node does not have modification privileges')}`,
         );

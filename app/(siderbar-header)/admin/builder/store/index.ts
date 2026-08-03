@@ -23,7 +23,7 @@ import {
   deleteScenario,
   cloneScenario,
 } from '../services/backendService';
-import { DB_TYPE, Scenario, TreeItem, UserInfo } from '../types/types';
+import { DB_TYPE, Scenario, TreeItem } from '../types/types';
 import useBuilderHistoryStore, { GraphSnapshot } from './historyStore';
 import { createGroupActionStore } from './groupActionStore';
 import {
@@ -32,6 +32,8 @@ import {
   sanitizeEdgesForSave,
   sanitizeNodesForSave,
 } from './edgeControlActionStore';
+import { useStore } from '@/store';
+import type { User } from '@/types/user';
 
 // ================================================================
 // 플레이 타입 설정
@@ -186,14 +188,15 @@ export const MOCK_UP_TREE_DATA: TreeItem[] = [
   },
 ];
 
-const userInfo: UserInfo = {
-  id: '0e24e70d-8d64-4ef8-8ce7-8d160cae8472',
-  user_id: 'OPUSADM',
-  user_name: 'OPUSADM',
+const userInfo: User = {
+  id: '',
+  sub: '',
+  email: '',
+  username: '',
   roles: ['guest'],
-  unuse_form_elements: [],
-  unuse_nodes: [],
-  node_colors: defaultColors,
+  unuseFormElements: [],
+  unuseNodes: [],
+  nodeColors: defaultColors,
 };
 
 /* 스토어 상태/액션 타입 */
@@ -201,9 +204,9 @@ export type StoreState = {
   backend: DB_TYPE;
   setBackend: (kind: DB_TYPE) => void;
 
-  userInfoJson: UserInfo;
-  setUserInfoJson: (userInfo: UserInfo) => void;
-  loadingUserData: () => Promise<UserInfo>;
+  userInfoJson: User;
+  setUserInfoJson: (userInfo: User) => void;
+  loadingUserData: () => Promise<User>;
   treeNodes: TreeItem[];
   loadTreeNodes: () => void;
 
@@ -466,29 +469,40 @@ export const useBuilderStore = create<StoreState>((set, get) => ({
   treeNodes: [],
 
   userInfoJson: userInfo,
-  setUserInfoJson: (userInfo: UserInfo) => set({ userInfoJson: userInfo }),
+  setUserInfoJson: (userInfo: User) => set({ userInfoJson: userInfo }),
   loadingUserData: async () => {
     // TODO: 추후 API 전환
     // const res = await apiClient.get<ElementTypeItem[]>('/chat/user-info');
     // const userInfo = res.data;
     try {
-      const currentUserInfo: UserInfo = get().userInfoJson;
-
-      const nextRoles =
-        currentUserInfo.id === '0e24e70d-8d64-4ef8-8ce7-8d160cae8472' &&
-        !currentUserInfo.roles.includes('admin')
-          ? [...currentUserInfo.roles, 'admin']
-          : currentUserInfo.roles;
+      const authenticatedUser = useStore.getState().user as User | null;
+      const storedBuilderUser = get().userInfoJson;
+      const currentUserInfo: User = authenticatedUser
+        ? {
+            ...storedBuilderUser,
+            ...authenticatedUser,
+            unuseFormElements:
+              authenticatedUser.unuseFormElements ??
+              storedBuilderUser.unuseFormElements ??
+              [],
+            unuseNodes:
+              authenticatedUser.unuseNodes ?? storedBuilderUser.unuseNodes ?? [],
+            nodeColors:
+              authenticatedUser.nodeColors ?? storedBuilderUser.nodeColors,
+          }
+        : storedBuilderUser;
 
       const nodeColors = {
         ...defaultColors,
-        ...(currentUserInfo.node_colors ?? {}),
+        ...(currentUserInfo.nodeColors ?? {}),
       };
 
-      const userInfo: UserInfo = {
+      const userInfo: User = {
         ...currentUserInfo,
-        roles: nextRoles,
-        node_colors: nodeColors,
+        roles: currentUserInfo.roles ?? ['guest'],
+        unuseFormElements: currentUserInfo.unuseFormElements ?? [],
+        unuseNodes: currentUserInfo.unuseNodes ?? [],
+        nodeColors,
       };
 
       set({
@@ -511,7 +525,7 @@ export const useBuilderStore = create<StoreState>((set, get) => ({
         ...section,
         // children 배열 내에서 unuseNodes에 id가 포함되지 않은 것만 남김
         children: section.children.filter(
-          (child) => !userInfo.unuse_nodes.includes(child.id),
+          (child) => !userInfo.unuseNodes?.includes(child.id),
         ),
       }));
       set({ treeNodes: filteredTreeData });

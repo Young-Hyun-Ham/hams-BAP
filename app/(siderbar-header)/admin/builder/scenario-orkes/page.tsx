@@ -80,8 +80,8 @@ function FlowUiPathPageContent() {
   const [isNodesSettingModalOpen, setIsNodesSettingModalOpen] = useState(false);
 
   // unuse nodes
-  const baseUnuseNodes = Array.isArray(userInfoJson?.unuse_nodes)
-    ? userInfoJson.unuse_nodes
+  const baseUnuseNodes = Array.isArray(userInfoJson?.unuseNodes)
+    ? userInfoJson.unuseNodes
     : [];
 
   const unuseNodes = insertTarget?.targetId
@@ -108,7 +108,7 @@ function FlowUiPathPageContent() {
 
     const onLoadSettings = async (type: string) => {
       const userInfo = await loadingUserData();
-      if (userInfo.unuse_nodes.includes(type)) {
+      if (userInfo.unuseNodes?.includes(type)) {
         showAlert(
           `${t('The node does not have modification privileges')}`,
         );
@@ -728,8 +728,8 @@ function FlowUiPathPageContent() {
           search={activitySearch}
           recentTypes={recentTypes}
           hiddenTypes={
-            userInfoJson.unuse_nodes && !insertTarget?.targetId
-              ? userInfoJson.unuse_nodes
+            userInfoJson.unuseNodes && !insertTarget?.targetId
+              ? userInfoJson.unuseNodes
               : insertTarget?.targetId
                 ? unuseNodes
                 : []

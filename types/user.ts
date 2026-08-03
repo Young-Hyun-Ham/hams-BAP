@@ -30,4 +30,7 @@ export type User = {
   updatedAt?: string | null;
   lastLoginAt?: string | null;
   isTestUser?: boolean;
+  unuseFormElements?: string[];
+  unuseNodes?: string[];
+  nodeColors?: Record<string, string>;
 }

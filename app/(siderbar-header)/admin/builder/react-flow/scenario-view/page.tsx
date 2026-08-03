@@ -57,6 +57,7 @@ import {
   FileText,
   Rocket,
   History,
+  RotateCcw,
 } from 'lucide-react';
 
 import useBuilderHistoryStore from '../../store/historyStore';
@@ -179,6 +180,7 @@ const Flow = ({ scenario, scenarios }: any) => {
   const {
     backend,
     userInfoJson,
+    loadingUserData,
     nodes,
     edges,
     onNodesChange,
@@ -892,9 +894,10 @@ const Flow = ({ scenario, scenarios }: any) => {
       ver_id: selectedVersionId ?? scenario.ltst_ver_id,
       memo: '',
     };
+    const currentUser = await loadingUserData();
     await scenarioVersionDeploy(backend, {
       ...payload,
-      depn_usr_id: userInfoJson?.user_id ?? '',
+      depn_usr_id: currentUser?.id ?? userInfoJson?.id ?? '',
     });
     setSelectedVersionId(null);
     setSelectedVersion(null);
@@ -967,27 +970,32 @@ const Flow = ({ scenario, scenarios }: any) => {
           <ArrowLeft size={20} />
           {t('Back')}
         </button>
-        <button
+        <Button
+          variant="outlined"
+          size="medium"
+          startIcon={<History size={18} />}
+          title={t('View the deployment history for this scenario')}
           onClick={() => {
             setIsDeployHistoryModalOpen(true);
           }}
-          style={{
-            backgroundColor: '#efb55dff',
-            color: 'white',
-            padding: '12px 24px',
-            borderRadius: '12px',
-            fontWeight: 'bold',
-            fontSize: '18px',
-            display: 'inline-flex',
-            alignItems: 'center', // 글자 중앙 정렬을 위해 center 추천
-            justifyContent: 'center',
-            cursor: 'pointer',
-            border: 'none',
-            userSelect: 'none',
+          sx={{
+            minHeight: 40,
+            px: 2,
+            borderRadius: 2,
+            borderColor: COLORS.blueGrey[200],
+            color: COLORS.grey[700],
+            bgcolor: 'background.paper',
+            fontWeight: 600,
+            textTransform: 'none',
+            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+            '&:hover': {
+              borderColor: 'primary.main',
+              bgcolor: COLORS.primary.states.hover,
+            },
           }}
         >
-          {t('Deploy History')}
-        </button>
+          {t('Deployment History')}
+        </Button>
       </Box>
 
       <Box
@@ -1064,59 +1072,45 @@ const Flow = ({ scenario, scenarios }: any) => {
             </div>
 
             {/* 2. 우측 버튼들을 감싸는 컨테이너 */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button
+                variant="outlined"
+                size="medium"
+                startIcon={<RotateCcw size={18} />}
+                title={t(
+                  'Restore the selected version as the current working scenario',
+                )}
                 onClick={() => {
                   handleMoveScenario(scenario);
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleMoveScenario(scenario);
-                }}
-                role="button"
-                tabIndex={0}
-                style={{
-                  backgroundColor: '#5D5FEF',
-                  color: 'white',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  fontWeight: 'bold',
-                  fontSize: '18px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  border: 'none',
-                  userSelect: 'none',
-                  marginRight: '6px',
+                sx={{
+                  minHeight: 40,
+                  px: 2,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  textTransform: 'none',
                 }}
               >
-                {t('Restored')}
-              </div>
-              <div
+                {t('Restore Version')}
+              </Button>
+              <Button
+                variant="contained"
+                size="medium"
+                startIcon={<Rocket size={18} />}
+                title={t('Deploy the selected scenario version')}
                 onClick={handleSelectedVersionDeploy}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSelectedVersionDeploy();
-                }}
-                role="button"
-                tabIndex={0}
-                style={{
-                  backgroundColor: '#5def70ff',
-                  color: 'white',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  fontWeight: 'bold',
-                  fontSize: '18px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  border: 'none',
-                  userSelect: 'none',
+                sx={{
+                  minHeight: 40,
+                  px: 2.25,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)',
                 }}
               >
-                {t('Deploy')}
-              </div>
-            </div>
+                {t('Deploy Version')}
+              </Button>
+            </Stack>
           </div>
           <ReactFlow
             className={isPanMode ? styles.panCanvas : styles.selectCanvas}

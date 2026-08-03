@@ -38,16 +38,6 @@ type VersionTreeItem = {
 
 type DB_TYPE = 'fastapi' | 'firebase';
 
-type UserInfo = {
-  id: string;
-  user_id: string;
-  user_name: string;
-  roles: string[];
-  unuse_form_elements: string[];
-  unuse_nodes: string[];
-  node_colors?: Record<string, string>;
-};
-
 type InsertTarget = {
   sourceId?: string | null;
   sourceHandle?: string | null;
@@ -80,7 +70,6 @@ export type {
   TreeItem,
   VersionTreeItem,
   DB_TYPE,
-  UserInfo,
   InsertTarget,
   AddNodeData,
   BuilderNodeData,

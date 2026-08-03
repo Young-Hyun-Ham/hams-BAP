@@ -340,7 +340,7 @@ export const useFormEditorStore = create<FormEditorStore>((set, get) => ({
             (item) =>
               item.visible &&
               item.del_yn !== 'Y' &&
-              !userInfo.unuse_form_elements.includes(item.type_cd),
+              !userInfo.unuseFormElements?.includes(item.type_cd),
           )
           .sort((a, b) => a.sort_order - b.sort_order),
         elementTypesLoading: false,
@@ -357,11 +357,3 @@ export const useFormEditorStore = create<FormEditorStore>((set, get) => ({
     }
   },
 }));
-
-type UserInfo = {
-  id: string;
-  user_id: string;
-  user_name: string;
-  unuse_form_elements: string[];
-  unuse_nodes: string[];
-};

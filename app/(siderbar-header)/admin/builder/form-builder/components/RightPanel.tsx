@@ -129,7 +129,7 @@ function RightPanel({
       const userInfo = await loadingUserData();
 
       if (mounted) {
-        setUnuseFormElements(userInfo.unuse_form_elements ?? []);
+        setUnuseFormElements(userInfo.unuseFormElements ?? []);
 
         formElementTypesJson.forEach((type) => {
           if (type.visible === false) {
