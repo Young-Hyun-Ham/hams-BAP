@@ -21,6 +21,7 @@ import { formatDateTime } from '../utils/util';
 export function ScenarioCard({
   scenario,
   selected = false,
+  focused = false,
   showProgressId = true,
   onSelect,
   onEdit,
@@ -29,10 +30,13 @@ export function ScenarioCard({
   onClone,
   disableClick = false,
   disableActions = false,
+  mode = 'default',
   versionChips,
 }: {
   scenario: Scenario;
   selected?: boolean;
+  focused?: boolean;
+  mode?: 'default' | 'popup';
   showProgressId?: boolean;
   onSelect?: (scenario: Scenario) => void;
   onEdit?: (scenario: Scenario) => void;
@@ -49,7 +53,7 @@ export function ScenarioCard({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-// console.log("Scenario Card: ", scenario);
+
   const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
   const isMenuOpen = Boolean(menuAnchorEl);
   const openMenu = (e: React.MouseEvent<HTMLElement>) => {
@@ -64,14 +68,35 @@ export function ScenarioCard({
     <Card
       key={scenario.id}
       sx={{
-        border: 1,
-        borderColor: selected ? COLORS.primary.main : COLORS.blueGrey[100],
+        border: (mode === 'popup' && selected) || selected ? 2 : 1,
+        borderColor:
+          mode === 'popup' && selected
+            ? '#16a34a'
+            : selected
+              ? COLORS.primary.main
+              : focused
+                ? COLORS.primary.main
+                : COLORS.blueGrey[100],
         borderRadius: 2,
         minWidth: 0,
         width: '100%',
         cursor: disableClick ? 'grab' : 'pointer',
         height: '100%',
-        backgroundColor: isDeployed ? '#e8f5e9' : 'background.paper',
+        backgroundColor:
+          mode === 'popup' && selected
+            ? '#f0fdf4'
+            : selected || focused
+              ? '#F3F8FF'
+              : isDeployed
+                ? '#e8f5e9'
+                : 'background.paper',
+        boxShadow:
+          mode === 'popup' && selected
+            ? '0 0 0 3px rgba(22,163,74,0.15)'
+            : selected || focused
+              ? '0 0 0 2px rgba(25,118,210,0.1)'
+              : undefined,
+        transition: 'all .2s ease',
       }}
       elevation={2}
       onClick={(e) => {

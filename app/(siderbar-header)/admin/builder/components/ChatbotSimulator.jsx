@@ -266,10 +266,17 @@ function ChatbotSimulator({
 
   const handleFormSubmit = () => {
     const elements = getRuntimeFormElements();
+    const submittedFormData = { ...formData };
 
     for (const element of elements) {
       if (element.type === 'input' || element.type === 'date') {
-        const value = formData[getFormElementKey(element)] || '';
+        const key = getFormElementKey(element);
+        if (!key) continue;
+
+        if (!Object.prototype.hasOwnProperty.call(submittedFormData, key)) {
+          submittedFormData[key] = element.value ?? element.defaultValue ?? '';
+        }
+        const value = submittedFormData[key];
         if (!validateInput(value, element.validation)) {
           let alertMessage = `'${element.label}' input is not valid.`;
           if (element.validation?.type === 'today after')
@@ -288,7 +295,7 @@ function ChatbotSimulator({
       }
     }
     completeCurrentInteraction();
-    const newSlots = { ...slots, ...formData };
+    const newSlots = { ...slots, ...submittedFormData };
     setSlots(newSlots);
     setFormData({});
     setHistory((prev) => [

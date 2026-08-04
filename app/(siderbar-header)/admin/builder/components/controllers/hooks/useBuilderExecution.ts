@@ -289,6 +289,7 @@ export function useBuilderExecution({ nodes, edges }: UseBuilderExecutionArgs) {
       }
 
       if (!nextEdge) {
+        const sourceNode = getNodeById(sourceNodeId);
         nextEdge =
           edges.find(
             (edge) =>
@@ -297,7 +298,9 @@ export function useBuilderExecution({ nodes, edges }: UseBuilderExecutionArgs) {
           edges.find(
             (edge) =>
               edge.source === sourceNodeId &&
-              (edge.sourceHandle == null || edge.sourceHandle === ''),
+              sourceHandle == null || sourceHandle === '' &&
+              !(sourceNode?.type === 'scenario' || sourceNode?.type === 'selectionGroup'),
+              // (edge.sourceHandle == null || edge.sourceHandle === ''),
           );
       }
 
@@ -762,7 +765,7 @@ export function useBuilderExecution({ nodes, edges }: UseBuilderExecutionArgs) {
 
         case 'ynBranch':
         case 'branch': {
-          if (node.type === 'ynBranch' || node.data?.isSimpleYN) {
+          if (node.type === 'ynBranch' && node.data?.isSimpleYN) {
             const replyYId = node.data?.replies?.[0]?.value || 'Y';
             const replyNId = node.data?.replies?.[1]?.value || 'N';
 

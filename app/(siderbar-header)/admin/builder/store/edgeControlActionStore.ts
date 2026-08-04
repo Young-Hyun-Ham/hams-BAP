@@ -110,8 +110,22 @@ export function sanitizeEdgesForSave(
           'onError',
           'true',
           'false',
+          'output-right',
+          'output-bottom',
+          'output',
+          'input-top',
+          'input-left',
+          'input',
+          'Y',
+          'N',
         ];
-        if (standardFixedHandles.includes(edge.sourceHandle)) return true;
+        if (
+          standardFixedHandles.includes(edge.sourceHandle) ||
+          edge.sourceHandle.startsWith('output') ||
+          edge.sourceHandle.startsWith('input')
+        ) {
+          return true;
+        }
 
         const nodeData = sourceNode.data as any;
         const replies = nodeData?.replies;
