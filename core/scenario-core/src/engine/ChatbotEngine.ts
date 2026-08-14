@@ -131,42 +131,6 @@ export class ChatbotEngine {
 
     const sourceNode = this.getNodeById(currentNodeId);
 
-    // Simple Y/N branch
-    if (sourceNode?.type === 'ynBranch' && sourceNode?.data?.isSimpleYN) {
-      const replyYId = sourceNode.data?.replies?.[0]?.value || 'Y';
-      const replyNId = sourceNode.data?.replies?.[1]?.value || 'N';
-
-      const rawInput =
-        slots.lastUserInput ??
-        slots.input ??
-        slots.user_input ??
-        slots.text ??
-        (sourceNode.data?.slotKey
-          ? slots[sourceNode.data.slotKey]
-          : undefined) ??
-        '';
-
-      const strInput = String(rawInput).trim().toUpperCase();
-
-      const isN =
-        strInput === 'N' ||
-        strInput === 'NO' ||
-        strInput === 'ㄴ' ||
-        strInput === 'FALSE';
-
-      const selectedHandle = isN ? replyNId : replyYId;
-
-      const selectedEdge = outgoingEdges.find(
-        (edge) => edge.sourceHandle === selectedHandle,
-      );
-
-      if (selectedEdge) {
-        return this.getNodeById(selectedEdge.target) || null;
-      }
-
-      return null;
-    }
-
     // Branch node with CONDITION evaluation
     if (sourceNode?.type === 'branch' && sourceNode.data?.evaluationType === 'CONDITION') {
       const conditions = sourceNode.data.conditions || [];

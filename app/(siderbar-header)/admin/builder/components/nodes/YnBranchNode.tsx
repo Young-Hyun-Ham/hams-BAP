@@ -73,6 +73,31 @@ const YnBranchNode = ({ id, data, selected }: NodeProps<YnBranchNodeData>) => {
         Y/N
       </Typography>
 
+      {/* Referenced Slot badge */}
+      {data?.slotKey && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -20,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            whiteSpace: 'nowrap',
+            fontSize: '9px',
+            fontWeight: 700,
+            color: '#2563eb',
+            bgcolor: '#eff6ff',
+            px: '4px',
+            py: '1px',
+            borderRadius: '3px',
+            border: '1px solid #bfdbfe',
+            pointerEvents: 'none',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          }}
+        >
+          {data.slotKey}
+        </Box>
+      )}
+
       {/* Output Y handle */}
       {(() => {
         const posY = data?.outputPositions?.['Y'] || 'right';

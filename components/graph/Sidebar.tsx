@@ -14,9 +14,8 @@ import LeftSidebar from './sidebar/LeftSidebar';
 import NodeInfoTab from './sidebar/NodeInfoTab';
 import SourceDocumentsTab from './sidebar/SourceDocumentsTab';
 import EditNodeTab from './sidebar/EditNodeTab';
-import { VisualizationDataRes } from '@/lib/types/graph';
+import { VisualizationDataRes, GraphEditorMode } from '@/lib/types/graph';
 import { TreeItem } from './data/treeData';
-import { GraphEditorMode } from '@/lib/types/graph';
 
 interface SidebarProps {
   type: 'left' | 'right';

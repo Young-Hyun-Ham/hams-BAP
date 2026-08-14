@@ -4,9 +4,12 @@ import {
   Checkbox,
   Chip,
   FormControl,
+  FormControlLabel,
   InputLabel,
   ListItemText,
   MenuItem,
+  Radio,
+  RadioGroup,
   Select,
   Stack,
   TextField,
@@ -22,6 +25,8 @@ import {
   InputElement,
 } from '../type';
 import GridDataEditor from './GridDataEditor';
+import { toLocaleTimeValue } from '../../utils/util';
+import { LOCALE_LIST, LOCALE_TIME } from '../../types/types';
 
 const splitList = (value: string) =>
   value
@@ -282,6 +287,49 @@ function ElementPropertyEditor({
               onChange({ ...element, placeholder: event.target.value })
             }
           />
+          {/* Minimum Length, Maximum Length */}
+          <TextField
+            label={t('Minimum Text Length')}
+            size="small"
+            type='number'
+            fullWidth
+            disabled={isReadonly}
+            value={element.minLength ?? '' }
+            onChange={(event) =>
+              onChange({ ...element, minLength: event.target.value })
+            }
+          />
+          <TextField
+            label={t('Maximum Text Length')}
+            size="small"
+            type='number'
+            fullWidth
+            disabled={isReadonly}
+            value={element.maxLength ?? '' }
+            onChange={(event) =>
+              onChange({ ...element, maxLength: event.target.value })
+            }
+          />
+          <FormControl fullWidth size="small">
+            <InputLabel id="transformTextType-label">{t('Transform Text')}</InputLabel>
+            <Select
+              labelId="transformTextType-label"
+              label={t('Transform Text')}
+              disabled={isReadonly}
+              value={element.transformTextType ?? ''}
+              onChange={(event) =>
+                onChange({
+                  ...element,
+                  transformTextType: event.target.value as InputElement['transformTextType'],
+                })
+              }
+            >
+              <MenuItem value="">{t('None')}</MenuItem>
+              <MenuItem value="uppercase">{t('Uppercase')}</MenuItem>
+              <MenuItem value="lowercase">{t('Lowercase')}</MenuItem>
+              <MenuItem value="capitalize">{t('Capitalize')}</MenuItem>
+            </Select>
+          </FormControl>
           <FormControl fullWidth size="small">
             <InputLabel id="validation-label">{t('validation')}</InputLabel>
             <Select
@@ -305,23 +353,286 @@ function ElementPropertyEditor({
               <MenuItem value="custom">{t('custom')}</MenuItem>
             </Select>
           </FormControl>
+          {element.validation.type === 'custom' && (
+            <TextField
+              label={t('Regex')}
+              size="small"
+              fullWidth
+              disabled={isReadonly}
+              value={element.regex}
+              onChange={(event) =>
+                onChange({ ...element, regex: event.target.value })
+              }
+            />
+          )}
         </Stack>
       );
     case 'date':
       return (
         <Stack spacing={2}>
-          <TextField
-            label={t('Default Value')}
-            size="small"
-            fullWidth
-            type="date"
-            disabled={isReadonly}
-            value={element.defaultValue}
+          {/* 라디오 버튼 그룹 (가로 배치: row 속성) */}
+          <RadioGroup
+            row={true}
+            aria-labelledby="date-type-radio-group-label"
+            name="hasFromTo"
+            value={element.hasFromTo ?? false}
             onChange={(event) =>
-              onChange({ ...element, defaultValue: event.target.value })
+              onChange({ ...element, hasFromTo: event.target.value === 'true' })
             }
-            InputLabelProps={{ shrink: true }}
+          >
+            <FormControlLabel
+              value={false}
+              control={<Radio size="small" />}
+              label={t('Single')}
+            />
+            <FormControlLabel
+              value={true}
+              control={<Radio size="small" />}
+              label={t('From-To')}
+            />
+          </RadioGroup>
+          {element.hasFromTo && (
+            <TextField
+              label={t('auto set to today')}
+              size="small"
+              type='number'
+              fullWidth
+              disabled={isReadonly}
+              value={element.defaultToDateOffset ?? 0 }
+              onChange={(event) =>
+                onChange({ ...element, defaultToDateOffset: Number(event.target.value) })
+              }
+            />
+          )}
+          {element.hasFromTo ? (
+            <>
+              <Stack spacing={1} direction="row" alignItems="center">
+                <TextField
+                  label={t('Default From Value')}
+                  size="small"
+                  fullWidth
+                  type="date"
+                  disabled={isReadonly}
+                  value={element.defaultFromValue ?? ''}
+                  onChange={(event) => {
+                    const nextDefaultValue = event.target.value;
+                    onChange({
+                      ...element,
+                      defaultFromValue: nextDefaultValue,
+                      fromDateValue: element.fromDateValue || nextDefaultValue,
+                      fromValue: toLocaleTimeValue(
+                        nextDefaultValue,
+                        element.fromTimeValue || element.defaultFromTimeValue || element.defaultTimeValue,
+                        element.hasTime,
+                        element.locale,
+                      ),
+                    });
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                />
+                {element.hasTime ? (
+                  <TextField
+                    label={t('Default From Time')}
+                    size="small"
+                    fullWidth
+                    type="time"
+                    disabled={isReadonly}
+                    value={element.defaultFromTimeValue ?? ''}
+                    onChange={(event) => {
+                      const nextDefaultValue = event.target.value;
+                      onChange({
+                        ...element,
+                        defaultFromTimeValue: nextDefaultValue,
+                        fromTimeValue: element.fromTimeValue || nextDefaultValue,
+                        fromValue: toLocaleTimeValue(
+                          element.fromDateValue || element.defaultFromValue || element.defaultValue,
+                          nextDefaultValue,
+                          element.hasTime,
+                          element.locale,
+                        ),
+                      });
+                    }}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    inputProps={{ step: 60 }}
+                  />
+                ) : null}
+              </Stack>
+              <Stack spacing={1} direction="row" alignItems="center">
+                <TextField
+                  label={t('Default To Value')}
+                  size="small"
+                  fullWidth
+                  type="date"
+                  disabled={isReadonly}
+                  value={element.defaultToValue ?? ''}
+                  onChange={(event) => {
+                    const nextDefaultValue = event.target.value;
+                    onChange({
+                      ...element,
+                      defaultToValue: nextDefaultValue,
+                      toDateValue: element.toDateValue || nextDefaultValue,
+                      toValue: toLocaleTimeValue(
+                        nextDefaultValue,
+                        element.toTimeValue || element.defaultToTimeValue || element.defaultTimeValue,
+                        element.hasTime,
+                        element.locale,
+                      ),
+                    });
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                />
+                {element.hasTime ? (
+                  <TextField
+                    label={t('Default To Time')}
+                    size="small"
+                    fullWidth
+                    type="time"
+                    disabled={isReadonly}
+                    value={element.defaultToTimeValue ?? ''}
+                    onChange={(event) => {
+                      const nextDefaultValue = event.target.value;
+                      onChange({
+                        ...element,
+                        defaultToTimeValue: nextDefaultValue,
+                        toTimeValue: element.toTimeValue || nextDefaultValue,
+                        toValue: toLocaleTimeValue(
+                          element.toDateValue || element.defaultToValue || '',
+                          nextDefaultValue,
+                          element.hasTime,
+                          element.locale,
+                        ),
+                      });
+                    }}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    inputProps={{ step: 60 }}
+                  />
+                ) : null}
+              </Stack>
+            </>
+          ) : (
+            <Stack spacing={1} direction="row" alignItems="center">
+              <TextField
+                label={t('Default Value')}
+                size="small"
+                fullWidth
+                type="date"
+                disabled={isReadonly}
+                value={element.defaultValue}
+                onChange={(event) => {
+                  const nextDefaultValue = event.target.value;
+                  onChange({
+                    ...element,
+                    defaultValue: nextDefaultValue,
+                    dateValue: element.dateValue || nextDefaultValue,
+                    value: toLocaleTimeValue(
+                      element.dateValue || nextDefaultValue,
+                      element.timeValue || element.defaultTimeValue,
+                      element.hasTime,
+                      element.locale,
+                    ),
+                    fromDateValue: element.fromDateValue || nextDefaultValue,
+                  });
+                }}
+                InputLabelProps={{ shrink: true }}
+              />
+              {element.hasTime ? (
+                <TextField
+                  label={t('Default Time')}
+                  size="small"
+                  fullWidth
+                  type="time"
+                  disabled={isReadonly}
+                  value={element.defaultTimeValue ?? ''}
+                  onChange={(event) => {
+                    const nextDefaultValue = event.target.value;
+                    onChange({
+                      ...element,
+                      defaultTimeValue: nextDefaultValue,
+                      timeValue: element.timeValue || nextDefaultValue,
+                      fromTimeValue: element.fromTimeValue || nextDefaultValue,
+                      value: toLocaleTimeValue(
+                        element.dateValue || element.defaultValue,
+                        nextDefaultValue,
+                        element.hasTime,
+                        element.locale,
+                      ),
+                    });
+                  }}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  inputProps={{ step: 60 }}
+                />
+              ) : null}
+            </Stack>
+          )}
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                disabled={isReadonly}
+                checked={element.hasTime ?? false}
+                onChange={(event) => {
+                  const hasTime = event.target.checked;
+                  const fromDate = element.hasFromTo
+                    ? element.fromDateValue || element.defaultFromValue || element.defaultValue
+                    : element.dateValue || element.defaultValue;
+                  const toDate = element.toDateValue || element.defaultToValue || '';
+                  const fromTime = element.fromTimeValue || element.defaultFromTimeValue || element.defaultTimeValue;
+                  const toTime = element.toTimeValue || element.defaultToTimeValue || element.defaultTimeValue;
+
+                  onChange({
+                    ...element,
+                    hasTime,
+                    value: toLocaleTimeValue(fromDate, fromTime, hasTime, element.locale),
+                    fromValue: element.hasFromTo
+                      ? toLocaleTimeValue(fromDate, fromTime, hasTime, element.locale)
+                      : undefined,
+                    toValue: element.hasFromTo
+                      ? toLocaleTimeValue(toDate, toTime, hasTime, element.locale)
+                      : undefined,
+                  });
+                }}
+              />
+            }
+            label={t('Use Time')}
           />
+          {element.hasTime ? (
+            <FormControl fullWidth size="small">
+              <InputLabel id="date-locale-label">{t('Locale')}</InputLabel>
+              <Select
+                labelId="date-locale-label"
+                label={t('Locale')}
+                disabled={isReadonly}
+                value={element.locale}
+                onChange={(event) => {
+                  const locale = event.target.value as LOCALE_TIME;
+                  const fromDate = element.hasFromTo
+                    ? element.fromDateValue || element.defaultFromValue || element.defaultValue
+                    : element.dateValue || element.defaultValue;
+                  const toDate = element.toDateValue || element.defaultToValue || '';
+                  const fromTime = element.fromTimeValue || element.defaultFromTimeValue || element.defaultTimeValue;
+                  const toTime = element.toTimeValue || element.defaultToTimeValue || element.defaultTimeValue;
+
+                  onChange({
+                    ...element,
+                    locale,
+                    value: toLocaleTimeValue(fromDate, fromTime, element.hasTime, locale),
+                    fromValue: element.hasFromTo
+                      ? toLocaleTimeValue(fromDate, fromTime, element.hasTime, locale)
+                      : undefined,
+                    toValue: element.hasFromTo
+                      ? toLocaleTimeValue(toDate, toTime, element.hasTime, locale)
+                      : undefined,
+                  });
+                }}
+              >
+                {LOCALE_LIST.map((item) => (
+                  <MenuItem key={item.value} value={item.value}>
+                    {item.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : null}
         </Stack>
       );
     case 'checkbox':
@@ -679,6 +990,32 @@ function ElementPropertyEditor({
     case 'grid':
       return (
         <Stack spacing={2}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={element.selectable ?? false}
+                disabled={isReadonly}
+                onChange={(event) =>
+                  onChange({ ...element, selectable: event.target.checked })
+                }
+              />
+            }
+            label={t('Selectable')}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={element.hasHeader ?? false}
+                disabled={isReadonly}
+                onChange={(event) =>
+                  onChange({ ...element, hasHeader: event.target.checked })
+                }
+              />
+            }
+            label={t('Header Row')}
+          />
           <TextField
             label={t('Data Slot')}
             helperText={t('Bind to array in slot')}

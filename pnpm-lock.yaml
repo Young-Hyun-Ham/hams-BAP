@@ -14,6 +14,9 @@ importers:
       '@chatbot/scenario-core':
         specifier: file:./core/scenario-core
         version: '@clt-chatbot/scenario-core@file:core/scenario-core'
+      '@dagrejs/dagre':
+        specifier: ^3.1.1
+        version: 3.1.1
       '@dnd-kit/accessibility':
         specifier: ^3.1.1
         version: 3.1.1(react@19.2.1)
@@ -314,6 +317,12 @@ packages:
 
   '@clt-chatbot/scenario-core@file:core/scenario-core':
     resolution: {directory: core/scenario-core, type: directory}
+
+  '@dagrejs/dagre@3.1.1':
+    resolution: {integrity: sha512-zroZB1dFOFiGgv4Xcrn1DckB1o4aOikPqD2NDQPV0WM//CXGcS6xiD0rNkqHmw6FEg4tabt4nxPLwgCWT+Vb2A==}
+
+  '@dagrejs/graphlib@4.0.5':
+    resolution: {integrity: sha512-7xrBTqIts3o+PMUZX97wSc+7TUbW+/rULzGNCTP6yooNVDXbzw4Wutg/H/xOutTB/c/k0YqOAavgPh4/Zk9PFA==}
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -4380,6 +4389,12 @@ snapshots:
       '@types/react': 19.2.17
 
   '@clt-chatbot/scenario-core@file:core/scenario-core': {}
+
+  '@dagrejs/dagre@3.1.1':
+    dependencies:
+      '@dagrejs/graphlib': 4.0.5
+
+  '@dagrejs/graphlib@4.0.5': {}
 
   '@dnd-kit/accessibility@3.1.1(react@19.2.1)':
     dependencies:

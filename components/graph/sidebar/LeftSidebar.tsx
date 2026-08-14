@@ -11,7 +11,7 @@ import {
   expandAll,
   buildTreeFromVisualizationData,
 } from '../data/treeData';
-import { VisualizationDataRes } from '@/lib/types/graph';
+import type { VisualizationDataRes } from '@/lib/types/graph';
 
 interface LeftSidebarProps {
   visualizationData?: VisualizationDataRes | null;

@@ -1,3 +1,5 @@
+import type { LOCALE_TIME, LOCALE_TIME_TYPE } from '../types/types';
+
 export const getSafeUUID = (): string => {
   // 1. 브라우저/Node 환경에서 표준 API가 존재하는지 확인
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -24,6 +26,45 @@ export const getSafeUUID = (): string => {
   });
 };
 
+export const toDateTimestamp = (
+  dateValue: string,
+  timeValue: string,
+  hasTime: boolean,
+): number => {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+  if (!dateMatch) return 0;
+
+  const [, yearText, monthText, dayText] = dateMatch;
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(timeValue);
+  const hours = hasTime && timeMatch ? Number(timeMatch[1]) : 0;
+  const minutes = hasTime && timeMatch ? Number(timeMatch[2]) : 0;
+  const year = Number(yearText);
+  const month = Number(monthText) - 1;
+  const day = Number(dayText);
+  const date = new Date(year, month, day, hours, minutes, 0, 0);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month ||
+    date.getDate() !== day ||
+    date.getHours() !== hours ||
+    date.getMinutes() !== minutes
+  ) {
+    return 0;
+  }
+
+  return date.getTime();
+};
+
+export const toLocaleTimeValue = (
+  dateValue: string,
+  timeValue: string,
+  hasTime: boolean,
+  locale: LOCALE_TIME,
+): LOCALE_TIME_TYPE => ({
+  date: toDateTimestamp(dateValue, timeValue, hasTime),
+  locale,
+});
 
 /**
  * ISO 형식의 날짜 문자열을 'YYYY-MM-DD HH:MI:SS' 형식으로 변환합니다.

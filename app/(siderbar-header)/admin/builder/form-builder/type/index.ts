@@ -1,4 +1,6 @@
+import { Timestamp } from 'next/dist/server/lib/cache-handlers/types';
 import { type ReactNode } from 'react';
+import { LOCALE_TIME, LOCALE_TIME_TYPE } from '../../types/types';
 
 type ElementType =
   | 'input'
@@ -61,6 +63,9 @@ export interface BaseFormElement {
   optionalParameter?: string;
   targetElementId?: string;
   responsePath?: string;
+
+  requires?: boolean;
+  description?: string;
 }
 
 export interface InputElement extends BaseFormElement {
@@ -68,8 +73,13 @@ export interface InputElement extends BaseFormElement {
   validation: {
     type: 'text' | 'email' | 'number' | 'custom';
   };
+  regex?: string;
   placeholder: string;
   defaultValue: string;
+
+  minLength?: string;
+  maxLength?: string;
+  transformTextType?: 'uppercase' | 'lowercase' | 'capitalize' | '';
 }
 
 export interface SearchElement extends BaseFormElement {
@@ -89,6 +99,25 @@ export interface SearchElement extends BaseFormElement {
 export interface DateElement extends BaseFormElement {
   type: 'date';
   defaultValue: string;
+  value: LOCALE_TIME_TYPE;
+
+  locale: LOCALE_TIME;
+  dateValue: string;
+  fromValue?: LOCALE_TIME_TYPE;
+  toValue?: LOCALE_TIME_TYPE;
+  hasFromTo?: boolean;
+  defaultFromValue?: string;
+  defaultToValue?: string;
+  fromDateValue: string;
+  toDateValue: string;
+  defaultToDateOffset?: number;
+  hasTime: boolean;
+  timeValue: string;
+  defaultTimeValue: string;
+  defaultFromTimeValue?: string;
+  defaultToTimeValue?: string;
+  fromTimeValue: string;
+  toTimeValue: string;
 }
 
 export interface CheckboxElement extends BaseFormElement {
@@ -118,6 +147,8 @@ export interface GridElement extends BaseFormElement {
   columns: number;
   displayKeys: DisplayKey[];
   optionsSlot?: string;
+  selectable?: boolean;
+  hasHeader?: boolean;
 }
 export interface FormElementData {
   formId?: string | null;

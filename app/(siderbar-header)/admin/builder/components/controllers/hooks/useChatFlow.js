@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useBuilderStore } from '../../../store';
 import { generateUniqueId } from '../../../utils/simulatorUtils';
+// import * as scenarioCore from '@clt-chatbot/scenario-core';
 import * as scenarioCore from '@/core/scenario-core/src/index';
-// import * as scenarioCore from '@/core/scenario-chatbot/src/index';
 
 const { ChatbotEngine } = scenarioCore;
 
@@ -20,10 +20,80 @@ export const useChatFlow = (nodes, edges) => {
   const activeChainIdRef = useRef(null);
   const lastExecutedNodeRef = useRef(null);
 
-  const engine = useRef(new ChatbotEngine({ nodes, edges, version: '1.0' }));
+  const engine = useRef(null);
+
+  if (!engine.current) {
+    const eng = new ChatbotEngine({ nodes, edges, version: '1.0' });
+    const originalGetNextNode = eng.getNextNode.bind(eng);
+    eng.getNextNode = (currentNodeId, sourceHandle = null, slots = {}) => {
+      const sourceNode = eng.getNodeById(currentNodeId);
+      let effectiveHandle = sourceHandle;
+      if (
+        sourceNode &&
+        (sourceNode.type === 'ynBranch' || sourceNode.data?.isSimpleYN) &&
+        !effectiveHandle
+      ) {
+        const rawInput = sourceNode.data?.slotKey
+          ? slots?.[sourceNode.data.slotKey]
+          : (slots?.lastUserInput ??
+            slots?.input ??
+            slots?.user_input ??
+            slots?.text ??
+            '');
+        const strInput = String(rawInput ?? '')
+          .trim()
+          .toUpperCase();
+        const isN =
+          strInput === 'N' ||
+          strInput === 'NO' ||
+          strInput === 'ㄴ' ||
+          strInput === 'FALSE' ||
+          strInput === '0';
+        const replyYId = sourceNode.data?.replies?.[0]?.value || 'Y';
+        const replyNId = sourceNode.data?.replies?.[1]?.value || 'N';
+        effectiveHandle = isN ? replyNId : replyYId;
+      }
+      return originalGetNextNode(currentNodeId, effectiveHandle, slots);
+    };
+    engine.current = eng;
+  }
+
+  
 
   useEffect(() => {
-    engine.current = new ChatbotEngine({ nodes, edges, version: '1.0' });
+    const eng = new ChatbotEngine({ nodes, edges, version: '1.0' });
+    const originalGetNextNode = eng.getNextNode.bind(eng);
+    eng.getNextNode = (currentNodeId, sourceHandle = null, slots = {}) => {
+      const sourceNode = eng.getNodeById(currentNodeId);
+      let effectiveHandle = sourceHandle;
+      if (
+        sourceNode &&
+        (sourceNode.type === 'ynBranch' || sourceNode.data?.isSimpleYN) &&
+        !effectiveHandle
+      ) {
+        const rawInput = sourceNode.data?.slotKey
+          ? slots?.[sourceNode.data.slotKey]
+          : (slots?.lastUserInput ??
+            slots?.input ??
+            slots?.user_input ??
+            slots?.text ??
+            '');
+        const strInput = String(rawInput ?? '')
+          .trim()
+          .toUpperCase();
+        const isN =
+          strInput === 'N' ||
+          strInput === 'NO' ||
+          strInput === 'ㄴ' ||
+          strInput === 'FALSE' ||
+          strInput === '0';
+        const replyYId = sourceNode.data?.replies?.[0]?.value || 'Y';
+        const replyNId = sourceNode.data?.replies?.[1]?.value || 'N';
+        effectiveHandle = isN ? replyNId : replyYId;
+      }
+      return originalGetNextNode(currentNodeId, effectiveHandle, slots);
+    };
+    engine.current = eng;
   }, [nodes, edges]);
 
   const { setSlots, anchorNodeId, startNodeId } = useBuilderStore();
@@ -146,9 +216,38 @@ export const useChatFlow = (nodes, edges) => {
 
   const getNextNode = useCallback(
     (sourceNodeId, sourceHandle, updatedSlots) => {
+      const sourceNode = getNodeById(sourceNodeId);
+      let effectiveHandle = sourceHandle;
+
+      if (
+        sourceNode &&
+        (sourceNode.type === 'ynBranch' || sourceNode.data?.isSimpleYN) &&
+        !effectiveHandle
+      ) {
+        const rawInput = sourceNode.data?.slotKey
+          ? updatedSlots?.[sourceNode.data.slotKey]
+          : (updatedSlots?.lastUserInput ??
+            updatedSlots?.input ??
+            updatedSlots?.user_input ??
+            updatedSlots?.text ??
+            '');
+        const strInput = String(rawInput ?? '')
+          .trim()
+          .toUpperCase();
+        const isN =
+          strInput === 'N' ||
+          strInput === 'NO' ||
+          strInput === 'ㄴ' ||
+          strInput === 'FALSE' ||
+          strInput === '0';
+        const replyYId = sourceNode.data?.replies?.[0]?.value || 'Y';
+        const replyNId = sourceNode.data?.replies?.[1]?.value || 'N';
+        effectiveHandle = isN ? replyNId : replyYId;
+      }
+
       const nextNode = engine.current.getNextNode(
         sourceNodeId,
-        sourceHandle,
+        effectiveHandle,
         updatedSlots,
         anchorNodeId,
       );
@@ -157,7 +256,7 @@ export const useChatFlow = (nodes, edges) => {
         nextNode || findContainerExitNode(sourceNodeId),
       );
     },
-    [anchorNodeId, findContainerExitNode, resolveExecutableNode],
+    [anchorNodeId, findContainerExitNode, getNodeById, resolveExecutableNode],
   );
 
   const markExecutedNode = useCallback((node) => {

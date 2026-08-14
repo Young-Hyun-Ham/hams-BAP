@@ -1,3 +1,4 @@
+import { Timestamp } from 'next/dist/server/lib/cache-handlers/types';
 import { Node } from 'reactflow';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -75,3 +76,16 @@ export type {
   BuilderNodeData,
   BuilderNode,
 };
+
+export const LOCALE_LIST = [
+  { value: "ko", label: "Korea" },
+  { value: "en", label: "America" },
+  { value: "vn", label: "Vietnam" },
+  { value: "jp", label: "Japan" },
+] as const;
+
+export type LOCALE_TIME = typeof LOCALE_LIST[number]["value"];
+export type LOCALE_TIME_TYPE = {
+  date: Timestamp;
+  locale: LOCALE_TIME;
+}

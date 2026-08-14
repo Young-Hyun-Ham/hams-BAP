@@ -12,7 +12,6 @@ import {
 import { alpha, IconButton } from '@mui/material';
 import { Wrench, Trash2 } from 'lucide-react';
 
-import { EdgeMenuContext } from '../FlowCanvas';
 import { useGraphStore } from '../store/useGraphStore';
 
 /**
@@ -148,8 +147,6 @@ const BPMNEdgeComponent = ({
     useGraphStore.getState().trackEdgeDeleted(id);
   };
 
-  const onOpenMenu = useContext(EdgeMenuContext);
-
   const mx = (adjSourceX + adjTargetX) / 2;
   const my = (adjSourceY + adjTargetY) / 2;
 
@@ -227,7 +224,6 @@ const BPMNEdgeComponent = ({
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onOpenMenu?.(e, id);
                 }}
                 sx={{
                   p: 0.5,

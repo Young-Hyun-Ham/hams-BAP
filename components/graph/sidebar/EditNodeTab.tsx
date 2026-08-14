@@ -4,8 +4,8 @@ import { Box, TextField, Button, Stack } from '@mui/material';
 import { Node, useReactFlow } from '@xyflow/react';
 
 import { useGraphStyles, getNodePrefix } from '../useGraphStyles';
-import useAlert from '@/lib/hooks/useAlert';
-import { DeleteIcon } from '@/app/builder/components/icons/Icons';
+import { useModal } from '@/providers/ModalProvider';
+import { DeleteIcon } from '@/app/(siderbar-header)/admin/builder/components/icons/Icons';
 import { GraphEditorMode } from '@/lib/types/graph';
 
 interface EditNodeTabProps {
@@ -30,7 +30,7 @@ const EditNodeTab = ({
   onNodeDeleted,
 }: EditNodeTabProps) => {
   const { t } = useTranslation();
-  const { showConfirm } = useAlert();
+  const { showConfirm } = useModal();
   const { setNodes, setEdges, getEdges } = useReactFlow();
   const { nodeTypes, nodeTypeStyles } = useGraphStyles();
 
@@ -94,7 +94,7 @@ const EditNodeTab = ({
 
   const removeNode = async (id: string) => {
     if (
-      await showConfirm(t('Confirm'), t('Do you want to delete this node?'))
+      await showConfirm(t('Do you want to delete this node?'))
     ) {
       const connectedEdges = getEdges().filter(
         (e) => e.source === id || e.target === id,

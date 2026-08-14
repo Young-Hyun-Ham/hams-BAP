@@ -19,6 +19,7 @@ import { useFormEditorStore } from '../stores/useFormEditorStore';
 import { FORM_ELEMENT_REGISTRY } from '../stores/elementRegistry';
 import { useBuilderStore } from '../../store';
 import CustomElementPropertyEditor from './CustomElementPropertyEditor';
+import ElementDefaultProperty from './ElementDefaultProperty';
 
 function SectionHeader({
   color,
@@ -244,43 +245,12 @@ function RightPanel({
                 title={`${t('Default Properties')} (Common)`}
                 resetElement={resetElement}
               />
-              <Stack spacing={2}>
-                <TextField
-                  label={t('Element ID')}
-                  size="small"
-                  fullWidth
-                  value={selectedElement.id}
-                  InputProps={{ readOnly: true }}
-                />
-                <TextField
-                  label={`${t('Label')} *`}
-                  size="small"
-                  fullWidth
-                  disabled={isSelectedElementReadonly}
-                  value={selectedElement.label}
-                  onChange={(event) =>
-                    updateElementField(
-                      selectedElement.id,
-                      'label',
-                      event.target.value,
-                    )
-                  }
-                />
-                <TextField
-                  label={`${t('Name')} (Slot Key)`}
-                  size="small"
-                  fullWidth
-                  disabled={isSelectedElementReadonly}
-                  value={selectedElement.name}
-                  onChange={(event) =>
-                    updateElementField(
-                      selectedElement.id,
-                      'name',
-                      event.target.value,
-                    )
-                  }
-                />
-              </Stack>
+
+              <ElementDefaultProperty
+                element={selectedElement}
+                onChange={updateElementField}
+                isReadonly={isSelectedElementReadonly}
+              />
             </Box>
 
             <Box>

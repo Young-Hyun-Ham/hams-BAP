@@ -17,6 +17,7 @@ import SetSlotNodeController from './controllers/SetSlotNodeController';
 import DelayNodeController from './controllers/DelayNodeController';
 import GroupNodeController from './controllers/GroupNodeController';
 import ScenarioNodeController from './controllers/ScenarioNodeController';
+import YnBranchNodeController from './controllers/YnBranchNodeController';
 
 import { useModal } from '@/providers/ModalProvider';
 
@@ -35,6 +36,7 @@ const nodeControllerMap = {
   delay: DelayNodeController,
   selectionGroup: GroupNodeController,
   scenario: ScenarioNodeController,
+  ynBranch: YnBranchNodeController,
 } as any;
 
 function NodeController() {

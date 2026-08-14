@@ -374,54 +374,6 @@ function CustomElementPropertyEditor({
             </Button>
           </DialogActions>
         </Dialog>
-        {responseError ? <Alert severity="error">{responseError}</Alert> : null}
-        <Button
-          variant="contained"
-          size="small"
-          disabled={isReadonly}
-          onClick={() => setIsApiModalOpen(true)}
-        >
-          {t('API Modal popup')}
-        </Button>
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={isReadonly || isExecuting}
-            onClick={() => void handleRunApi(false)}
-            startIcon={isExecuting ? <CircularProgress size={14} /> : undefined}
-          >
-            {t('Run API')}
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={isReadonly || isExecuting || !element.targetElementId}
-            onClick={() => void handleRunApi(true)}
-          >
-            {t('Run and Apply')}
-          </Button>
-        </Stack>
-        <TextField
-          label={t('API ID')}
-          size="small"
-          fullWidth
-          value={element.apiId ?? ''}
-          InputProps={{ readOnly: true }}
-        />
-        <TextField
-          label={t('Endpoint')}
-          size="small"
-          fullWidth
-          value={apiData?.endPoint ?? ''}
-          onChange={(event) =>
-            onChange({
-              ...element,
-              apiData: { ...element.apiData, endPoint: event.target.value },
-            })
-          }
-          // InputProps={{ readOnly: true }}
-        />
         {/*
         <FormControl fullWidth size="small">
           <InputLabel id="validation-label">{t('Method')}</InputLabel>
@@ -454,6 +406,26 @@ function CustomElementPropertyEditor({
           // InputProps={{ readOnly: true }}
         />
         */}
+        <TextField
+          label={t('API ID')}
+          size="small"
+          fullWidth
+          value={element.apiId ?? ''}
+          InputProps={{ readOnly: true }}
+        />
+        <TextField
+          label={t('Endpoint')}
+          size="small"
+          fullWidth
+          value={apiData?.endPoint ?? ''}
+          onChange={(event) =>
+            onChange({
+              ...element,
+              apiData: { ...element.apiData, endPoint: event.target.value },
+            })
+          }
+          // InputProps={{ readOnly: true }}
+        />
         <FormControl fullWidth size="small">
           <InputLabel id="validation-label">{t('event type')}</InputLabel>
           <Select
@@ -535,6 +507,37 @@ function CustomElementPropertyEditor({
             onChange({ ...element, responsePath: event.target.value })
           }
         />
+        {responseError ? <Alert severity="error">{responseError}</Alert> : null}
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="contained"
+            size="small"
+            sx={{ fontSize: '10px' }}
+            disabled={isReadonly}
+            onClick={() => setIsApiModalOpen(true)}
+          >
+            {t('API Modal popup')}
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{ fontSize: '10px' }}
+            disabled={isReadonly || isExecuting}
+            onClick={() => void handleRunApi(false)}
+            startIcon={isExecuting ? <CircularProgress size={14} /> : undefined}
+          >
+            {t('Run API')}
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{ fontSize: '10px' }}
+            disabled={isReadonly || isExecuting || !element.targetElementId}
+            onClick={() => void handleRunApi(true)}
+          >
+            {t('Run and Apply')}
+          </Button>
+        </Stack>
       </Stack>
     );
   };

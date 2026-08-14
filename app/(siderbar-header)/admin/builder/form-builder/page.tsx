@@ -56,8 +56,10 @@ import {
 import { useFormEditorStore } from './stores/useFormEditorStore';
 import { useNodeController } from '../components/controllers/hooks/useNodeController';
 
+import { toLocaleTimeValue } from '../utils/util';
 import apiClient from '@/lib/api/apiClient';
 import { useModal } from '@/providers/ModalProvider';
+import { LOCALE_LIST, LOCALE_TIME, LOCALE_TIME_TYPE } from '../types/types';
 
 const createId = (type: string) =>
   `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -67,6 +69,17 @@ const createFormId = () => createId('form');
 const isElementType = (value: unknown): value is ElementType =>
   typeof value === 'string' &&
   FORM_ELEMENT_TYPES.includes(value as ElementType);
+
+const isLocaleTime = (value: unknown): value is LOCALE_TIME =>
+  LOCALE_LIST.some((item) => item.value === value);
+
+const isLocaleTimeValue = (value: unknown): value is LOCALE_TIME_TYPE =>
+  value !== null &&
+  typeof value === 'object' &&
+  'date' in value &&
+  typeof value.date === 'number' &&
+  'locale' in value &&
+  isLocaleTime(value.locale);
 
 const normalizeDisplayValues = (
   value: unknown,
@@ -135,6 +148,9 @@ const normalizeElement = (value: unknown): FormElement | null => {
         : '',
     responsePath:
       typeof element.responsePath === 'string' ? element.responsePath : '',
+    requires: Boolean(element.requires) ?? false,
+    description:
+      typeof element.description === 'string' ? element.description : '',
   };
 
   switch (element.type) {
@@ -157,14 +173,92 @@ const normalizeElement = (value: unknown): FormElement | null => {
           typeof element.placeholder === 'string' ? element.placeholder : '',
         defaultValue:
           typeof element.defaultValue === 'string' ? element.defaultValue : '',
+        regex:
+          typeof element.regex === 'string' ? element.regex : undefined,
+        minLength:
+          typeof element.minLength === 'string' ? element.minLength : undefined,
+        maxLength:
+          typeof element.maxLength === 'string' ? element.maxLength : undefined,
+        transformTextType:
+          element.transformTextType === 'uppercase' ||
+          element.transformTextType === 'lowercase' ||
+          element.transformTextType === 'capitalize' ?
+          element.transformTextType : '',
       };
-    case 'date':
+    case 'date': {
+      const defaultValue =
+        typeof element.defaultValue === 'string' ? element.defaultValue : '';
+      const dateValue =
+        typeof element.dateValue === 'string' && element.dateValue
+          ? element.dateValue
+          : defaultValue;
+      const defaultFromValue =
+        typeof element.defaultFromValue === 'string' ? element.defaultFromValue : '';
+      const defaultToValue =
+        typeof element.defaultToValue === 'string' ? element.defaultToValue : '';
+      const hasTime = Boolean(element.hasTime);
+      const locale = isLocaleTime(element.locale)
+        ? element.locale
+        : isLocaleTimeValue(element.value)
+          ? element.value.locale
+          : 'ko';
+      const defaultTimeValue =
+        typeof element.defaultTimeValue === 'string' ? element.defaultTimeValue : '';
+      const defaultFromTimeValue =
+        typeof element.defaultFromTimeValue === 'string' ? element.defaultFromTimeValue : '';
+      const defaultToTimeValue =
+        typeof element.defaultToTimeValue === 'string' ? element.defaultToTimeValue : '';
+      const fromDateValue =
+        typeof element.fromDateValue === 'string' && element.fromDateValue
+          ? element.fromDateValue
+          : defaultFromValue || defaultValue;
+      const toDateValue =
+        typeof element.toDateValue === 'string' && element.toDateValue
+          ? element.toDateValue
+          : defaultToValue;
+      const fromTimeValue =
+        typeof element.fromTimeValue === 'string' && element.fromTimeValue
+          ? element.fromTimeValue
+          : defaultFromTimeValue || defaultTimeValue;
+      const toTimeValue =
+        typeof element.toTimeValue === 'string' && element.toTimeValue
+          ? element.toTimeValue
+          : defaultToTimeValue || defaultTimeValue;
+
       return {
         ...base,
         type: 'date',
-        defaultValue:
-          typeof element.defaultValue === 'string' ? element.defaultValue : '',
+        locale,
+        defaultValue,
+        dateValue,
+        value:
+          isLocaleTimeValue(element.value)
+            ? { ...element.value, locale }
+            : toLocaleTimeValue(dateValue, defaultTimeValue, hasTime, locale),
+        fromValue:
+          isLocaleTimeValue(element.fromValue)
+            ? { ...element.fromValue, locale }
+            : toLocaleTimeValue(fromDateValue, fromTimeValue, hasTime, locale),
+        toValue:
+          isLocaleTimeValue(element.toValue)
+            ? { ...element.toValue, locale }
+            : toLocaleTimeValue(toDateValue, toTimeValue, hasTime, locale),
+        hasFromTo: Boolean(element.hasFromTo),
+        defaultToDateOffset: typeof element.defaultToDateOffset === 'number' ? element.defaultToDateOffset : undefined,
+        defaultFromValue,
+        defaultToValue,
+        fromDateValue,
+        toDateValue,
+        hasTime,
+        timeValue:
+          typeof element.timeValue === 'string' ? element.timeValue : defaultTimeValue,
+        defaultTimeValue,
+        defaultFromTimeValue,
+        defaultToTimeValue,
+        fromTimeValue,
+        toTimeValue,
       };
+    }
     case 'checkbox':
       return {
         ...base,

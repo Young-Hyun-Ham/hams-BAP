@@ -769,15 +769,13 @@ export function useBuilderExecution({ nodes, edges }: UseBuilderExecutionArgs) {
             const replyYId = node.data?.replies?.[0]?.value || 'Y';
             const replyNId = node.data?.replies?.[1]?.value || 'N';
 
-            const rawInput =
-              currentSlots.lastUserInput ??
-              currentSlots.input ??
-              currentSlots.user_input ??
-              currentSlots.text ??
-              (node.data?.slotKey
-                ? currentSlots[node.data.slotKey]
-                : undefined) ??
-              '';
+            const rawInput = node.data?.slotKey
+              ? currentSlots[node.data.slotKey]
+              : (currentSlots.lastUserInput ??
+                currentSlots.input ??
+                currentSlots.user_input ??
+                currentSlots.text ??
+                '');
 
             const strInput = String(rawInput ?? '')
               .trim()

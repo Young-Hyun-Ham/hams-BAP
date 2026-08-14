@@ -152,6 +152,7 @@ import {
 import apiClient from '@/lib/api/apiClient';
 import { useModal } from '@/providers/ModalProvider';
 import { COLORS } from '@/lib/constants/color';
+import { alignScenarioNodes } from './autoLayout';
 
 const DEFAULT_FORM_API_HEADERS = `{
   "Content-Type":"application/json",
@@ -1409,20 +1410,19 @@ const Flow = ({ scenario, scenarios }: any) => {
       .push(makeSnapshot(useBuilderStore.getState()));
   };
 
-  const { onLayout } = useAutoLayout();
+  // const { onLayout } = useAutoLayout();
 
   const handleAutoLayout = useCallback(() => {
-    const { nodes: layoutedNodes, edges: layoutedEdges } = onLayout(
+    const { nodes: layoutedNodes, edges: layoutedEdges } = alignScenarioNodes(
       nodes as any,
       edges as any,
-      'LR',
     );
     setNodes(layoutedNodes as any);
     setEdges(layoutedEdges as any);
     useBuilderHistoryStore
       .getState()
       .push(makeSnapshot(useBuilderStore.getState()));
-  }, [nodes, edges, onLayout, setNodes, setEdges]);
+  }, [nodes, edges, setNodes, setEdges]);
 
   const handleNodeDrag = useCallback(
     (_: React.MouseEvent, draggedNode: Node) => {

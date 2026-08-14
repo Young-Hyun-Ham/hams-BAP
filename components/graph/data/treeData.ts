@@ -3,7 +3,7 @@
  * TODO: Replace fetchTreeData with a real API call when backend is ready.
  */
 
-import { VisualizationDataRes } from '@/lib/types/graph';
+import type { VisualizationDataRes } from '@/lib/types/graph';
 
 export interface TreeItem {
   id: string;

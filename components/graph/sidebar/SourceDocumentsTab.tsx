@@ -5,9 +5,6 @@ import { Node } from '@xyflow/react';
 import dynamic from 'next/dynamic';
 
 import styles from '../SideBar.module.css';
-import { chunkService } from '@/lib/api/services/chunkService';
-import { graphService } from '@/lib/api/services/graphService';
-import { ChunkInfoRes } from '@/lib/types/chunk';
 import { useGraphStore } from '../store/useGraphStore';
 
 const PdfViewer = dynamic(() => import('@/components/common/PdfViewer'), {
@@ -83,7 +80,8 @@ const SourceDocumentsTab = ({ selectedNode }: SourceDocumentsTabProps) => {
       setDocViewerUrl(null);
 
       try {
-        const docRes = await chunkService.getDocViewerUrlByDocuFilId(docuFilId);
+        // const docRes = await chunkService.getDocViewerUrlByDocuFilId(docuFilId);
+        const docRes: any = {};
         if (cancelled) return;
 
         if (docRes?.access_url) {
@@ -133,11 +131,12 @@ const SourceDocumentsTab = ({ selectedNode }: SourceDocumentsTabProps) => {
       }
 
       try {
-        const chunkRes = await graphService.getChunkBboxInfo(
-          docuFilId,
-          chnkId,
-          elemId,
-        );
+        // const chunkRes = await graphService.getChunkBboxInfo(
+        //   docuFilId,
+        //   chnkId,
+        //   elemId,
+        // );
+        const chunkRes: any = {};
         if (cancelled) return;
 
         if (Array.isArray(chunkRes) && chunkRes.length > 0) {

@@ -22,9 +22,9 @@ import { Cancel } from '@mui/icons-material';
 
 import AgGridCellRender from './AgGridCellRender';
 
-import { CommonUdcInput, CommonUdcOutput } from '@/lib/types/commonCode';
-import useCommonUdcs from '@/hooks/useBizDatas';
-import { useDebounce } from '@/hooks/useDebounce';
+import type { CommonUdcInput, CommonUdcOutput } from '@/lib/types/commonCode';
+// import useCommonUdcs from '@/hooks/useBizDatas';
+// import { useDebounce } from '@/hooks/useDebounce';
 
 /* ========================================================= */
 

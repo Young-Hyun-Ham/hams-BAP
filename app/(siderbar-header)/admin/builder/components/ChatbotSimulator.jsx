@@ -274,7 +274,10 @@ function ChatbotSimulator({
         if (!key) continue;
 
         if (!Object.prototype.hasOwnProperty.call(submittedFormData, key)) {
-          submittedFormData[key] = element.value ?? element.defaultValue ?? '';
+          submittedFormData[key] =
+            element.value ??
+            interpolateMessage(element.defaultValue, slots) ??
+            '';
         }
         const value = submittedFormData[key];
         if (!validateInput(value, element.validation)) {

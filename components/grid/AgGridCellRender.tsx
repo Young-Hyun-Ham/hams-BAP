@@ -8,7 +8,7 @@ export interface CellRenderParams extends CommonUdcOutput {
   is_place_holder?: boolean | true;
   is_display_chip: boolean;
 }
-const AgGridCellRender = (props: CellRenderParams) => {
+const AgGridCellRender = (props: CellRenderParams | any) => {
   const displayId = props.value03 || props.value01;
   const hasValue =
     Boolean(displayId && props.value02) || Boolean(props.displayName);
