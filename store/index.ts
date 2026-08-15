@@ -16,6 +16,33 @@ import { createUISlice } from "@/store/slice/uiSlice";
 import { NavItem, SidebarMenu } from "@/types/nav";
 import { User } from "@/types/user";
 
+const DEV_MOCK_LOGIN = process.env.NEXT_PUBLIC_DEV_MOCK_LOGIN === "true";
+
+const USER_MOCK_DATA = {
+  id: "3f206e64-1de1-4720-8013-6261f3aaeb46",
+  sub: "3f206e64-1de1-4720-8013-6261f3aaeb46",
+  uid: "3f206e64-1de1-4720-8013-6261f3aaeb46",
+  email: "hyh8414@gmail.com",
+  username: "함영현",
+  name: "함영현",
+  displayName: "함영현",
+  nickname: "함영현",
+  loginId: "ghyh84141",
+  loginIdLower: "ghyh84141",
+  emailLower: "hyh8414@gmail.com",
+  roles: ["user", "admin"],
+  provider: "google",
+  providerSubject: null,
+  phoneNumber: "01099360110",
+  aiEnabled: true,
+  aiChatType: "gpt",
+  chatModel: "gpt-3.5-turbo",
+  termsAcceptedAt: null,
+  termsVersion: null,
+  createdAt: "2026-04-09T06:56:22.125Z",
+  updatedAt: "2026-04-24T05:00:11.863Z",
+};
+
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND ?? "firebase";
 
 const getInitialMessages = (lang: any = "ko") => [
@@ -227,7 +254,19 @@ export const useStore: any = create((set: any, get: any) => ({
         });
         await get().setUserAndLoadData(me);
       })
-      .catch(() => {
+      .catch(async () => {
+        if (DEV_MOCK_LOGIN) {
+          set({
+            user: USER_MOCK_DATA,
+            token: null,
+            authChecked: true,
+            loginType: "mock",
+          });
+
+          await get().setUserAndLoadData(USER_MOCK_DATA);
+          return;
+        }
+
         get().clearUserAndData();
       });
   },

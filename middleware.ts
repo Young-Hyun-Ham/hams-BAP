@@ -7,7 +7,10 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const includeAdminAccount = process.env.NEXT_PUBLIC_ADMIN_ACCOUNT;
 
+  const devMockLogin = process.env.NEXT_PUBLIC_DEV_MOCK_LOGIN === "true";
+
   if (
+    !devMockLogin &&
     !token &&
     (req.nextUrl.pathname.startsWith("/admin") || req.nextUrl.pathname.startsWith("/main"))
   ) {
@@ -17,6 +20,9 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith("/admin")) {
+    if (devMockLogin) {
+      return NextResponse.next();
+    }
     const user = await getUserFromToken(token);
     const isAdmin = includeAdminAccount && includeAdminAccount.includes(user?.email ?? "");
 
