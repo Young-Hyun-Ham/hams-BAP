@@ -55,6 +55,7 @@ const normalizeExecutionFormOption = (
     return {
       value,
       label: String(option.label ?? option.value ?? value),
+      param: option.param?.trim() || value,
     };
   }
 
@@ -62,6 +63,7 @@ const normalizeExecutionFormOption = (
   return {
     value,
     label: value,
+    param: value,
   };
 };
 
@@ -144,6 +146,10 @@ export default function ExecutionFormInputModal({
                   ? (slotValue as ExecutionFormOption[])
                   : element.options || [];
               const checkedValues = Array.isArray(value) ? value : [];
+              const optionParams =
+                value && typeof value === 'object' && !Array.isArray(value)
+                  ? (value as Record<string, unknown>)
+                  : {};
 
               return (
                 <Box key={element.id || element.name}>
@@ -163,7 +169,11 @@ export default function ExecutionFormInputModal({
                       </Typography>
                     )}
                     {options.map((option, index: number) => {
-                      const { value: optionValue, label: optionLabel } =
+                      const {
+                        value: optionValue,
+                        label: optionLabel,
+                        param: optionParam,
+                      } =
                         normalizeExecutionFormOption(option, index);
 
                       return (
@@ -171,7 +181,11 @@ export default function ExecutionFormInputModal({
                           key={`${elementName}-${optionValue || index}`}
                           control={
                             <Checkbox
-                              checked={checkedValues.includes(optionValue)}
+                              checked={
+                                element.sendByOption
+                                  ? optionParams[optionParam] === 'Y'
+                                  : checkedValues.includes(optionValue)
+                              }
                               onChange={(event) =>
                                 onUpdateCheckbox(
                                   elementName,
@@ -222,7 +236,11 @@ export default function ExecutionFormInputModal({
                       </Typography>
                     )}
                     {options.map((option, index: number) => {
-                      const { value: optionValue, label: optionLabel } =
+                      const {
+                        value: optionValue,
+                        label: optionLabel,
+                        param: optionParam,
+                      } =
                         normalizeExecutionFormOption(option, index);
 
                       return (
@@ -230,10 +248,62 @@ export default function ExecutionFormInputModal({
                           key={`${elementName}-${optionValue || index}`}
                           control={
                             <Radio
-                              checked={String(value ?? '') === optionValue}
-                              onChange={() =>
-                                onUpdateValue(elementName, optionValue, element)
+                              checked={
+                                element.sendByOption
+                                  ? Boolean(
+                                      value &&
+                                        typeof value === 'object' &&
+                                        !Array.isArray(value) &&
+                                        (value as Record<string, unknown>)[
+                                          optionParam
+                                        ] === 'Y',
+                                    )
+                                  : String(value ?? '') === optionValue
                               }
+                              onClick={() => {
+                                const isSelected = element.sendByOption
+                                  ? Boolean(
+                                      value &&
+                                        typeof value === 'object' &&
+                                        !Array.isArray(value) &&
+                                        (value as Record<string, unknown>)[
+                                          optionParam
+                                        ] === 'Y',
+                                    )
+                                  : String(value ?? '') === optionValue;
+                                const shouldDeselect =
+                                  element.allowDeselection && isSelected;
+
+                                if (!element.sendByOption) {
+                                  onUpdateValue(
+                                    elementName,
+                                    shouldDeselect ? '' : optionValue,
+                                    element,
+                                  );
+                                  return;
+                                }
+
+                                onUpdateValue(
+                                  elementName,
+                                  Object.fromEntries(
+                                    options.map((item, optionIndex) => {
+                                      const normalized =
+                                        normalizeExecutionFormOption(
+                                          item,
+                                          optionIndex,
+                                        );
+                                      return [
+                                        normalized.param,
+                                        !shouldDeselect &&
+                                        normalized.value === optionValue
+                                          ? 'Y'
+                                          : 'N',
+                                      ];
+                                    }),
+                                  ),
+                                  element,
+                                );
+                              }}
                               size="small"
                             />
                           }

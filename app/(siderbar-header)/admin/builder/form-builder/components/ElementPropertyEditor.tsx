@@ -54,6 +54,7 @@ const normalizeDisplayValue = (
   return {
     value,
     label: option.label || value,
+    param: option.param,
   };
 };
 
@@ -70,6 +71,68 @@ const getDropboxDefaultValue = (value: string | string[]) =>
 
 const getDropboxDefaultValues = (value: string | string[]) =>
   Array.isArray(value) ? value : value ? [value] : [];
+
+const layoutColumnOptions = Array.from({ length: 20 }, (_, index) => index + 1);
+
+function OptionLayoutEditor({
+  element,
+  onChange,
+  isReadonly,
+}: {
+  element: Extract<FormElement, { type: 'checkbox' | 'radio' }>;
+  onChange: (element: FormElement) => void;
+  isReadonly: boolean;
+}) {
+  const { t } = useTranslation();
+  const optionLayout = element.optionLayout ?? 'vertical';
+
+  return (
+    <Stack spacing={2} direction="row">
+      <FormControl fullWidth size="small">
+        <InputLabel id={`${element.id}-option-layout-label`}>
+          {t('Option Layout')}
+        </InputLabel>
+        <Select
+          labelId={`${element.id}-option-layout-label`}
+          label={t('Option Layout')}
+          disabled={isReadonly}
+          value={optionLayout}
+          onChange={(event) =>
+            onChange({
+              ...element,
+              optionLayout: event.target.value as 'vertical' | 'horizontal',
+            })
+          }
+        >
+          <MenuItem value="vertical">{t('Vertical')}</MenuItem>
+          <MenuItem value="horizontal">{t('Horizontal')}</MenuItem>
+        </Select>
+      </FormControl>
+      {optionLayout === 'horizontal' ? (
+        <FormControl fullWidth size="small">
+          <InputLabel id={`${element.id}-options-per-row-label`}>
+            {t('Items per Row')}
+          </InputLabel>
+          <Select
+            labelId={`${element.id}-options-per-row-label`}
+            label={t('Items per Row')}
+            disabled={isReadonly}
+            value={element.optionsPerRow ?? 2}
+            onChange={(event) =>
+              onChange({ ...element, optionsPerRow: Number(event.target.value) })
+            }
+          >
+            {layoutColumnOptions.map((count) => (
+              <MenuItem key={count} value={count}>
+                {count}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      ) : null}
+    </Stack>
+  );
+}
 
 const parseDisplayKeys = (value: string): DisplayKey[] =>
   value
@@ -137,10 +200,14 @@ function DisplayOptionsEditor({
   options,
   onOptionsChange,
   isReadonly,
+  sendByOption = false,
+  onSendByOptionChange,
 }: {
   options: DisplayOption[];
   onOptionsChange: (options: DisplayValue[]) => void;
   isReadonly: boolean;
+  sendByOption?: boolean;
+  onSendByOptionChange?: (checked: boolean) => void;
 }) {
   const { t } = useTranslation();
   const normalizedOptions = options.map(normalizeDisplayValue);
@@ -187,6 +254,21 @@ function DisplayOptionsEditor({
         </Select>
       </FormControl>
 
+      {onSendByOptionChange ? (
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              disabled={isReadonly}
+              checked={sendByOption}
+              onChange={(event) => onSendByOptionChange(event.target.checked)}
+            />
+          }
+          label={t('Send by option')}
+          sx={{ mx: 0 }}
+        />
+      ) : null}
+
       <Box
         sx={{
           display: 'grid',
@@ -202,7 +284,7 @@ function DisplayOptionsEditor({
           Display
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Value
+          {sendByOption ? 'Param' : 'Value'}
         </Typography>
 
         {normalizedOptions.map((option, index) => (
@@ -229,9 +311,13 @@ function DisplayOptionsEditor({
             <TextField
               size="small"
               disabled={isReadonly}
-              value={option.value}
+              value={sendByOption ? (option.param ?? '') : option.value}
               onChange={(event) =>
-                handleOptionChange(index, 'value', event.target.value)
+                handleOptionChange(
+                  index,
+                  sendByOption ? 'param' : 'value',
+                  event.target.value,
+                )
               }
             />
           </Box>
@@ -638,8 +724,28 @@ function ElementPropertyEditor({
     case 'checkbox':
       return (
         <Stack spacing={2}>
+          <OptionLayoutEditor
+            element={element}
+            onChange={onChange}
+            isReadonly={isReadonly}
+          />
           <DisplayOptionsEditor
             options={element.options}
+            sendByOption={element.sendByOption}
+            onSendByOptionChange={(checked) =>
+              onChange({
+                ...element,
+                sendByOption: checked,
+                defaultValue: [],
+                options: element.options.map((option, index) => {
+                  const normalized = normalizeDisplayValue(option, index);
+                  return {
+                    ...normalized,
+                    param: normalized.param || normalized.value,
+                  };
+                }),
+              })
+            }
             onOptionsChange={(options) => {
               const optionValues = options.map((option) => option.value);
               onChange({
@@ -652,23 +758,25 @@ function ElementPropertyEditor({
             }}
             isReadonly={isReadonly}
           />
-          <DraftTextField
-            label={t('Default Value')}
-            helperText={t(
-              'Enter the value of the option to check in comma or line-up',
-            )}
-            minRows={2}
-            isReadonly={isReadonly}
-            value={formatList(element.defaultValue)}
-            onCommit={(value) =>
-              onChange({
-                ...element,
-                defaultValue: splitList(value).filter((item) =>
-                  getOptionValues(element.options).includes(item),
-                ),
-              })
-            }
-          />
+          {!element.sendByOption && (
+            <DraftTextField
+              label={t('Default Value')}
+              helperText={t(
+                'Enter the value of the option to check in comma or line-up',
+              )}
+              minRows={2}
+              isReadonly={isReadonly}
+              value={formatList(element.defaultValue)}
+              onCommit={(value) =>
+                onChange({
+                  ...element,
+                  defaultValue: splitList(value).filter((item) =>
+                    getOptionValues(element.options).includes(item),
+                  ),
+                })
+              }
+            />
+          )}
         </Stack>
       );
     case 'radio': {
@@ -676,8 +784,45 @@ function ElementPropertyEditor({
 
       return (
         <Stack spacing={2}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                disabled={isReadonly}
+                checked={element.allowDeselection ?? false}
+                onChange={(event) =>
+                  onChange({
+                    ...element,
+                    allowDeselection: event.target.checked,
+                  })
+                }
+              />
+            }
+            label={t('Allow Deselection')}
+            sx={{ mx: 0 }}
+          />
+          <OptionLayoutEditor
+            element={element}
+            onChange={onChange}
+            isReadonly={isReadonly}
+          />
           <DisplayOptionsEditor
             options={element.options}
+            sendByOption={element.sendByOption}
+            onSendByOptionChange={(checked) =>
+              onChange({
+                ...element,
+                sendByOption: checked,
+                defaultValue: '',
+                options: element.options.map((option, index) => {
+                  const normalized = normalizeDisplayValue(option, index);
+                  return {
+                    ...normalized,
+                    param: normalized.param || normalized.value,
+                  };
+                }),
+              })
+            }
             onOptionsChange={(options) => {
               const optionValues = options.map((option) => option.value);
               onChange({
@@ -690,29 +835,31 @@ function ElementPropertyEditor({
             }}
             isReadonly={isReadonly}
           />
-          <FormControl fullWidth size="small">
-            <InputLabel id="radio-default-label">
-              {t('Default Value')}
-            </InputLabel>
-            <Select
-              labelId="radio-default-label"
-              label={t('Default Value')}
-              disabled={isReadonly}
-              value={element.defaultValue}
-              onChange={(event) =>
-                onChange({ ...element, defaultValue: event.target.value })
-              }
-            >
-              <MenuItem value="">
-                <em>{t('None')}</em>
-              </MenuItem>
-              {normalizedOptions.map((option, index) => (
-                <MenuItem key={option.value || index} value={option.value}>
-                  {option.label}
+          {!element.sendByOption && (
+            <FormControl fullWidth size="small">
+              <InputLabel id="radio-default-label">
+                {t('Default Value')}
+              </InputLabel>
+              <Select
+                labelId="radio-default-label"
+                label={t('Default Value')}
+                disabled={isReadonly}
+                value={element.defaultValue}
+                onChange={(event) =>
+                  onChange({ ...element, defaultValue: event.target.value })
+                }
+              >
+                <MenuItem value="">
+                  <em>{t('None')}</em>
                 </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+                {normalizedOptions.map((option, index) => (
+                  <MenuItem key={option.value || index} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
         </Stack>
       );
     }

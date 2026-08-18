@@ -53,7 +53,9 @@ type ExecutionFormElement = {
   type?: string;
   label?: string;
   placeholder?: string;
-  options?: Array<string | { label?: string; value?: string }>;
+  options?: Array<string | { label?: string; value?: string; param?: string }>;
+  sendByOption?: boolean;
+  allowDeselection?: boolean;
   optionsSlot?: string;
   selectKind?: 'single' | 'multi';
   defaultValue?: unknown;
@@ -69,7 +71,11 @@ type ExecutionFormElement = {
   displayKeys?: Array<string | { key?: string; label?: string }>;
   hideNullColumns?: boolean;
 };
-type ExecutionFormOption = string | { label?: string; value?: string };
+type ExecutionFormOption = string | {
+  label?: string;
+  value?: string;
+  param?: string;
+};
 
 // Sidebar menu data
 type SidebarMenuData = {

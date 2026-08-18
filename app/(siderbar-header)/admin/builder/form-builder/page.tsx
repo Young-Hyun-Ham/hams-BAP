@@ -106,6 +106,8 @@ const normalizeDisplayValues = (
         label: displayValue.label
           ? String(displayValue.label)
           : String(displayValue.value),
+        param:
+          typeof displayValue.param === 'string' ? displayValue.param : undefined,
       };
     })
     .filter((item): item is DisplayValue => Boolean(item));
@@ -270,6 +272,13 @@ const normalizeElement = (value: unknown): FormElement | null => {
         defaultValue: Array.isArray(element.defaultValue)
           ? element.defaultValue.map(String)
           : [],
+        optionLayout:
+          element.optionLayout === 'horizontal' ? 'horizontal' : 'vertical',
+        optionsPerRow:
+          typeof element.optionsPerRow === 'number' && element.optionsPerRow > 0
+            ? Math.min(20, Math.floor(element.optionsPerRow))
+            : 2,
+        sendByOption: element.sendByOption === true,
       };
     case 'radio':
       return {
@@ -285,6 +294,14 @@ const normalizeElement = (value: unknown): FormElement | null => {
             : Array.isArray(element.defaultValue)
               ? String(element.defaultValue[0] ?? '')
               : '',
+        optionLayout:
+          element.optionLayout === 'horizontal' ? 'horizontal' : 'vertical',
+        optionsPerRow:
+          typeof element.optionsPerRow === 'number' && element.optionsPerRow > 0
+            ? Math.min(20, Math.floor(element.optionsPerRow))
+            : 2,
+        sendByOption: element.sendByOption === true,
+        allowDeselection: element.allowDeselection === true,
       };
     case 'dropbox': {
       const selectKind = element.selectKind === 'multi' ? 'multi' : 'single';
@@ -451,7 +468,7 @@ function ScenarioFormBuilder() {
     () =>
       elementTypes
         .map((item) => item.type_cd)
-        .filter((type): type is ElementType => isElementType(type)),
+        .filter((type): type is ElementType => isElementType(type) && type !== 'search'),
     [elementTypes],
   );
 
@@ -937,7 +954,7 @@ function ScenarioFormBuilder() {
             sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
           >
             {formElementTypesJson
-              .filter((item) => item.del_yn !== 'Y')
+              .filter((item) => item.del_yn !== 'Y' && item.type_cd !== 'search')
               .sort((a, b) => a.sort_order - b.sort_order)
               .map((item) => {
                 const type = item.type_cd;

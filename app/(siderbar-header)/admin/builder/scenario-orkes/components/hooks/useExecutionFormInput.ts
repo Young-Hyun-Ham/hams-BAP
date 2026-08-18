@@ -227,6 +227,32 @@ export function useExecutionFormInput() {
       element?: ExecutionFormElement,
     ) => {
       setExecutionFormValues((prev) => {
+        if (element?.sendByOption) {
+          const current =
+            prev[name] &&
+            typeof prev[name] === 'object' &&
+            !Array.isArray(prev[name])
+              ? (prev[name] as Record<string, unknown>)
+              : {};
+          const option = element.options?.find((item) =>
+            typeof item === 'string' ? item === value : item.value === value,
+          );
+          const param =
+            typeof option === 'string'
+              ? option
+              : option?.param?.trim() || option?.value || value;
+          const nextValues = {
+            ...prev,
+            [name]: { ...current, [param]: checked ? 'Y' : 'N' },
+          };
+
+          if (element.eventType === 'onChange') {
+            void runExecutionFormElementApi(element, nextValues);
+          }
+
+          return nextValues;
+        }
+
         const current = Array.isArray(prev[name]) ? prev[name] : [];
         const nextValues = {
           ...prev,

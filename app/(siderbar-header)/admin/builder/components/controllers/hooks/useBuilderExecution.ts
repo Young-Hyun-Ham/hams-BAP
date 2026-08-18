@@ -47,6 +47,9 @@ type FormElement = {
   type?: string;
   selectKind?: string;
   defaultValue?: unknown;
+  options?: Array<string | { value?: string; param?: string }>;
+  sendByOption?: boolean;
+  allowDeselection?: boolean;
 };
 
 type FormInputValues = Record<string, unknown>;
@@ -144,9 +147,43 @@ export function useBuilderExecution({ nodes, edges }: UseBuilderExecutionArgs) {
         if (!key) return;
 
         if (element.type === 'checkbox') {
+          if (element.sendByOption) {
+            const selectedValues = Array.isArray(element.defaultValue)
+              ? element.defaultValue.map(String)
+              : [];
+            initialValues[key] = Object.fromEntries(
+              (element.options ?? []).map((option) => {
+                const value =
+                  typeof option === 'string' ? option : String(option.value ?? '');
+                const param =
+                  typeof option === 'string'
+                    ? option
+                    : option.param?.trim() || value;
+                return [param, selectedValues.includes(value) ? 'Y' : 'N'];
+              }),
+            );
+            return;
+          }
+
           initialValues[key] = Array.isArray(element.defaultValue)
             ? element.defaultValue
             : [];
+          return;
+        }
+
+        if (element.type === 'radio' && element.sendByOption) {
+          const selectedValue = String(element.defaultValue ?? '');
+          initialValues[key] = Object.fromEntries(
+            (element.options ?? []).map((option) => {
+              const value =
+                typeof option === 'string' ? option : String(option.value ?? '');
+              const param =
+                typeof option === 'string'
+                  ? option
+                  : option.param?.trim() || value;
+              return [param, value === selectedValue ? 'Y' : 'N'];
+            }),
+          );
           return;
         }
 

@@ -213,8 +213,21 @@ function ElementPreview({
 
   const errorMessage = touched ? getErrorMessage(value) : '';
   const normalizeOption = (
-    option: string | { value: string; label: string },
+    option: string | { value: string; label: string; param?: string },
   ) => (typeof option === 'string' ? { value: option, label: option } : option);
+
+  const createOptionParams = (selectedValues: string[]) =>
+    'options' in element
+      ? Object.fromEntries(
+          element.options.map((item) => {
+            const option = normalizeOption(item);
+            return [
+              option.param?.trim() || option.value,
+              selectedValues.includes(option.value) ? 'Y' : 'N',
+            ];
+          }),
+        )
+      : {};
 
   switch (element.type) {
     case 'input':
@@ -328,7 +341,17 @@ function ElementPreview({
       );
     case 'checkbox':
       return (
-        <Stack spacing={0.5}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns:
+              element.optionLayout === 'horizontal'
+                ? `repeat(${Math.max(1, element.optionsPerRow ?? 2)}, minmax(0, 1fr))`
+                : 'minmax(0, 1fr)',
+            columnGap: 1,
+            rowGap: 0.5,
+          }}
+        >
           {element.options.map((item) => {
             const option = normalizeOption(item);
             const selectedValues = Array.isArray(value) ? value : [];
@@ -340,15 +363,21 @@ function ElementPreview({
                   <Checkbox
                     size="small"
                     onClick={(event) => event.stopPropagation()}
-                    onChange={(event) =>
-                      updatePreviewValue(
-                        event.target.checked
-                          ? [...selectedValues, option.value]
-                          : selectedValues.filter(
-                              (itemValue) => itemValue !== option.value,
-                            ),
-                      )
-                    }
+                    onChange={(event) => {
+                      const nextSelectedValues = event.target.checked
+                        ? [...selectedValues, option.value]
+                        : selectedValues.filter(
+                            (itemValue) => itemValue !== option.value,
+                          );
+                      setValue(nextSelectedValues);
+                      setTouched(true);
+                      onElementEvent?.(
+                        element,
+                        element.sendByOption
+                          ? createOptionParams(nextSelectedValues)
+                          : nextSelectedValues,
+                      );
+                    }}
                     checked={selectedValues.includes(option.value)}
                   />
                 }
@@ -357,13 +386,25 @@ function ElementPreview({
             );
           })}
           {errorMessage ? (
-            <FormHelperText error>{errorMessage}</FormHelperText>
+            <FormHelperText error sx={{ gridColumn: '1 / -1' }}>
+              {errorMessage}
+            </FormHelperText>
           ) : null}
-        </Stack>
+        </Box>
       );
     case 'radio':
       return (
-        <Stack spacing={0.5}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns:
+              element.optionLayout === 'horizontal'
+                ? `repeat(${Math.max(1, element.optionsPerRow ?? 2)}, minmax(0, 1fr))`
+                : 'minmax(0, 1fr)',
+            columnGap: 1,
+            rowGap: 0.5,
+          }}
+        >
           {element.options.map((item) => {
             const option = normalizeOption(item);
 
@@ -373,8 +414,21 @@ function ElementPreview({
                 control={
                   <Radio
                     size="small"
-                    onClick={(event) => event.stopPropagation()}
-                    onChange={() => updatePreviewValue(option.value)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      const nextValue =
+                        element.allowDeselection && value === option.value
+                          ? ''
+                          : option.value;
+                      setValue(nextValue);
+                      setTouched(true);
+                      onElementEvent?.(
+                        element,
+                        element.sendByOption
+                          ? createOptionParams(nextValue ? [nextValue] : [])
+                          : nextValue,
+                      );
+                    }}
                     checked={value === option.value}
                   />
                 }
@@ -383,9 +437,11 @@ function ElementPreview({
             );
           })}
           {errorMessage ? (
-            <FormHelperText error>{errorMessage}</FormHelperText>
+            <FormHelperText error sx={{ gridColumn: '1 / -1' }}>
+              {errorMessage}
+            </FormHelperText>
           ) : null}
-        </Stack>
+        </Box>
       );
     case 'dropbox': {
       const options = element.options.map(normalizeOption);
@@ -422,12 +478,29 @@ function ElementPreview({
                 }
 
                 return (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexWrap: 'nowrap',
+                      gap: 0.5,
+                      minWidth: 0,
+                      overflow: 'hidden',
+                    }}
+                  >
                     {values.slice(0, 3).map((value) => (
                       <Chip
                         key={value}
                         size="small"
                         label={optionLabels.get(value) ?? value}
+                        sx={{
+                          flexShrink: 1,
+                          minWidth: 0,
+                          '& .MuiChip-label': {
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          },
+                        }}
                       />
                     ))}
                     {values.length > 3 ? (
@@ -455,7 +528,13 @@ function ElementPreview({
                       checked={selectedValues.includes(option.value)}
                     />
                   ) : null}
-                  <ListItemText primary={option.label} />
+                  <ListItemText
+                    primary={option.label}
+                    primaryTypographyProps={{
+                      noWrap: true,
+                      title: option.label,
+                    }}
+                  />
                 </MenuItem>
               ))}
             </Select>
@@ -464,42 +543,60 @@ function ElementPreview({
             ) : null}
           </FormControl>
 
-          {isMultiSelect ? (
-            <Box
-              sx={{
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 0.75,
-                px: 1,
-                py: 0.75,
-              }}
-            >
-              {options.map((option) => (
-                <Box
-                  key={option.value}
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: '24px 32px minmax(0, 1fr)',
-                    alignItems: 'center',
-                    minHeight: 24,
+          {/* 동적 옵션 목록  */}
+          <Box
+            sx={{
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 0.75,
+              px: 1,
+              py: 0.75,
+            }}
+          >
+            {options.map((option) => (
+              <Box
+                key={option.value}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '24px minmax(0, 1fr)',
+                  columnGap: 1,
+                  alignItems: 'center',
+                  minHeight: 24,
+                }}
+              >
+                <Checkbox
+                  size="small"
+                  checked={selectedValues.includes(option.value)}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={(event) => {
+                    if (!isMultiSelect) {
+                      updatePreviewValue(
+                        event.target.checked ? option.value : '',
+                      );
+                      return;
+                    }
+
+                    updatePreviewValue(
+                      event.target.checked
+                        ? [...selectedValues, option.value]
+                        : selectedValues.filter(
+                            (selectedValue) => selectedValue !== option.value,
+                          ),
+                    );
                   }}
+                  sx={{ p: 0 }}
+                />
+                <Typography
+                  variant="body2"
+                  title={option.label}
+                  noWrap
+                  sx={{ minWidth: 0 }}
                 >
-                  <Checkbox
-                    size="small"
-                    disabled
-                    checked={selectedValues.includes(option.value)}
-                    sx={{ p: 0 }}
-                  />
-                  {/*
-                  <Typography variant="caption" color="text.secondary">
-                    {option.value}
-                  </Typography>
-                  */}
-                  <Typography variant="body2">{option.label}</Typography>
-                </Box>
-              ))}
-            </Box>
-          ) : null}
+                  {option.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Stack>
       );
     }

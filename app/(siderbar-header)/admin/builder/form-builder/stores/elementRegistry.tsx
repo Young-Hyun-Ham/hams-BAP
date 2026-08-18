@@ -93,6 +93,9 @@ export const FORM_ELEMENT_REGISTRY = {
         { value: 'Option 2', label: 'Option 2' },
       ],
       defaultValue: [],
+      optionLayout: 'vertical',
+      optionsPerRow: 2,
+      sendByOption: false,
     }),
   },
 
@@ -117,6 +120,10 @@ export const FORM_ELEMENT_REGISTRY = {
         { value: 'Option 2', label: 'Option 2' },
       ],
       defaultValue: '',
+      optionLayout: 'vertical',
+      optionsPerRow: 2,
+      sendByOption: false,
+      allowDeselection: false,
     }),
   },
 

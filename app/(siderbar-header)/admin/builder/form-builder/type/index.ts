@@ -49,6 +49,7 @@ export interface DisplayKey {
 export interface DisplayValue {
   value: string;
   label: string;
+  param?: string;
 }
 
 export interface BaseFormElement {
@@ -124,12 +125,19 @@ export interface CheckboxElement extends BaseFormElement {
   type: 'checkbox';
   options: (string | DisplayValue)[];
   defaultValue: string[];
+  optionLayout?: 'vertical' | 'horizontal';
+  optionsPerRow?: number;
+  sendByOption?: boolean;
 }
 
 export interface RadioElement extends BaseFormElement {
   type: 'radio';
   options: (string | DisplayValue)[];
   defaultValue: string;
+  optionLayout?: 'vertical' | 'horizontal';
+  optionsPerRow?: number;
+  sendByOption?: boolean;
+  allowDeselection?: boolean;
 }
 
 export interface DropboxElement extends BaseFormElement {
